@@ -20,7 +20,6 @@ const display = Fraunces({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600'],
   style: ['normal', 'italic'],
-  axes: ['opsz', 'SOFT'],
   variable: '--font-display',
   display: 'swap',
 });
