@@ -29,16 +29,27 @@ export function Header() {
           </div>
 
           <nav className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" aria-label={t('wishlist')}>
-              <Heart size={20} />
-            </Button>
-            <Button variant="ghost" size="icon" aria-label={t('cart')}>
-              <ShoppingCart size={20} />
-            </Button>
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex">
-              <User size={18} />
-              <span>{t('login')}</span>
-            </Button>
+            <Link href="/cart" aria-label={t('cart')}>
+              <Button variant="ghost" size="icon" asChild={false}>
+                <ShoppingCart size={20} />
+              </Button>
+            </Link>
+            <Link href="/account/wishlist" aria-label={t('wishlist')} className="hidden sm:inline-flex">
+              <Button variant="ghost" size="icon" asChild={false}>
+                <Heart size={20} />
+              </Button>
+            </Link>
+            <Link href="/login" className="hidden sm:inline-flex">
+              <Button variant="ghost" size="sm" asChild={false}>
+                <User size={18} />
+                <span className="ml-1">{t('login')}</span>
+              </Button>
+            </Link>
+            <Link href="/signup" className="hidden sm:inline-flex">
+              <Button variant="default" size="sm" asChild={false}>
+                <span>Sign up</span>
+              </Button>
+            </Link>
           </nav>
         </div>
 
