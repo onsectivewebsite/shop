@@ -12,10 +12,9 @@ export function Footer() {
           <div className="md:col-span-4">
             <Link
               href="/"
-              className="flex items-baseline gap-1 text-2xl font-semibold tracking-tight text-white"
+              className="font-display text-[28px] font-normal tracking-[-0.02em] text-white"
             >
-              <span>Onsective</span>
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-hidden />
+              Onsective<span className="text-amber-300">.</span>
             </Link>
             <p className="mt-5 max-w-sm text-sm leading-relaxed text-slate-400">
               A curated worldwide marketplace. Trusted sellers, fast delivery, and the

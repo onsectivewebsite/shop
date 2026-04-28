@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
-import { ArrowRight, Truck, ShieldCheck, RotateCcw, Sparkles } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { prisma } from '@/server/db';
-import { CategoryStrip } from '@/components/category-strip';
 
 async function getHomeData() {
   const [categories, productCount] = await Promise.all([
@@ -21,185 +20,226 @@ export default async function HomePage() {
   const { categories, productCount } = await getHomeData();
 
   return (
-    <div className="container-page">
-      {/* HERO */}
-      <section className="relative mt-8 overflow-hidden rounded-3xl bg-slate-950 px-8 py-16 text-white sm:px-14 sm:py-20 md:px-20 md:py-28">
-        {/* Decorative geometric accents */}
-        <div
-          className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-gradient-to-br from-amber-400/30 to-amber-600/0 blur-3xl"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-gradient-to-tr from-indigo-500/25 to-indigo-500/0 blur-3xl"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
-            backgroundSize: '32px 32px',
-          }}
-          aria-hidden
-        />
-
-        <div className="relative max-w-3xl">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-white/80 backdrop-blur">
-            <Sparkles size={12} className="text-amber-300" />
-            A curated worldwide marketplace
-          </span>
-          <h1 className="mt-6 font-display text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl">
-            {t('hero.headline')}
-          </h1>
-          <p className="mt-6 max-w-xl text-lg text-white/70 sm:text-xl">
-            {t('hero.subheadline')}
-          </p>
-          <div className="mt-10 flex flex-wrap items-center gap-3">
-            <Link
-              href="/category/electronics"
-              className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-slate-950 transition-all hover:bg-slate-100 hover:shadow-lg"
-            >
-              {t('hero.ctaPrimary')}
-              <ArrowRight size={16} />
-            </Link>
-            <Link
-              href="/sell"
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 py-3.5 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/10"
-            >
-              {t('hero.ctaSecondary')}
-            </Link>
-          </div>
-
-          {/* trust signals */}
-          <div className="mt-14 grid max-w-2xl grid-cols-2 gap-y-5 sm:grid-cols-3">
-            <TrustItem icon={Truck} label="Free shipping over $50" />
-            <TrustItem icon={ShieldCheck} label="Buyer protection" />
-            <TrustItem icon={RotateCcw} label="Easy 30-day returns" />
-          </div>
-        </div>
-      </section>
-
-      {/* CATEGORIES */}
-      <CategoryStrip categories={categories} title={t('sections.shopByCategory')} />
-
-      {/* EDITORIAL SPLIT */}
-      <section className="mt-24 grid gap-6 md:grid-cols-2">
-        <FeatureCard
-          tone="dark"
-          eyebrow="New arrivals"
-          title="Spring drop, freshly curated."
-          body="Hand-picked pieces from the world's best independent makers — all in one place."
-          href="/category/fashion"
-          cta="Browse the drop"
-        />
-        <FeatureCard
-          tone="light"
-          eyebrow="For sellers"
-          title="Reach buyers across 80+ countries."
-          body="List in minutes. We handle payments, fraud, and global logistics so you can focus on craft."
-          href="/sell"
-          cta="Start selling"
-        />
-      </section>
-
-      {/* TRENDING — placeholder until products land */}
-      <section className="mt-24">
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Discover
-            </p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-              {t('sections.trending')}
-            </h2>
-          </div>
-          <Link
-            href="/trending"
-            className="hidden items-center gap-1 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 sm:inline-flex"
-          >
-            {t('sections.seeAll')} <ArrowRight size={16} />
-          </Link>
-        </div>
-
-        {productCount === 0 ? (
-          <div className="mt-10 flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-8 py-16 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white">
-              <Sparkles size={22} strokeWidth={1.75} />
+    <div>
+      {/* HERO — full-bleed, generous, single statement */}
+      <section className="relative bg-white">
+        <div className="container-page">
+          <div className="grid min-h-[78vh] grid-cols-1 items-center gap-16 py-24 md:grid-cols-12 md:py-32">
+            <div className="md:col-span-7">
+              <p className="text-[11px] font-medium uppercase tracking-[0.32em] text-slate-500">
+                A worldwide marketplace
+              </p>
+              <h1 className="mt-10 font-display text-[64px] font-normal leading-[0.98] tracking-[-0.03em] text-slate-950 sm:text-[88px] md:text-[112px] lg:text-[132px]">
+                Things <em className="italic font-display font-normal text-slate-400">worth</em>
+                <br />
+                owning.
+              </h1>
+              <p className="mt-12 max-w-md text-base leading-relaxed text-slate-600">
+                A small, deliberate selection from the world&rsquo;s independent
+                makers — sourced for quality, not quantity.
+              </p>
+              <div className="mt-16 flex flex-wrap items-center gap-8">
+                <Link
+                  href="/category/electronics"
+                  className="group inline-flex items-center gap-3 border-b border-slate-900 pb-1 text-[13px] font-medium uppercase tracking-[0.18em] text-slate-900 transition-opacity hover:opacity-60"
+                >
+                  Browse the catalogue
+                  <ArrowUpRight
+                    size={14}
+                    strokeWidth={1.5}
+                    className="transition-transform group-hover:translate-x-1 group-hover:-translate-y-1"
+                  />
+                </Link>
+                <Link
+                  href="/sell"
+                  className="text-[13px] font-medium uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-slate-900"
+                >
+                  Become a maker
+                </Link>
+              </div>
             </div>
-            <h3 className="mt-5 text-xl font-semibold text-slate-900">
-              The catalog opens soon
-            </h3>
-            <p className="mt-2 max-w-md text-sm text-slate-600">
-              Onsective is onboarding its first sellers. Come back shortly — or apply to
-              be among the first to list your products to a curated global audience.
-            </p>
-            <Link
-              href="/sell"
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
-            >
-              Apply to sell <ArrowRight size={14} />
-            </Link>
-          </div>
-        ) : (
-          <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <article
-                key={i}
-                className="group overflow-hidden rounded-2xl border border-slate-200 bg-white"
-              >
-                <div className="aspect-square animate-pulse bg-slate-100" />
-                <div className="space-y-2 p-3">
-                  <div className="h-4 w-3/4 animate-pulse rounded bg-slate-100" />
-                  <div className="h-4 w-1/2 animate-pulse rounded bg-slate-100" />
+            <div className="hidden md:col-span-5 md:block">
+              <div className="relative aspect-[4/5] overflow-hidden rounded-sm bg-slate-100">
+                <div className="absolute inset-0 bg-gradient-to-br from-stone-200 via-stone-100 to-amber-50" />
+                <div
+                  className="absolute inset-0 opacity-[0.06]"
+                  style={{
+                    backgroundImage:
+                      'radial-gradient(circle at 1px 1px, #0f172a 1px, transparent 0)',
+                    backgroundSize: '20px 20px',
+                  }}
+                />
+                <div className="absolute bottom-8 left-8 right-8">
+                  <p className="font-display text-2xl font-normal italic leading-tight text-slate-700">
+                    &ldquo;Buy less, but better.&rdquo;
+                  </p>
+                  <p className="mt-3 text-xs uppercase tracking-[0.24em] text-slate-500">
+                    The Onsective philosophy
+                  </p>
                 </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* CLOSING CTA */}
-      <section className="my-24 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-100 to-slate-50 p-10 sm:p-14 md:p-20">
-        <div className="grid items-center gap-10 md:grid-cols-2">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Onsective Membership
-            </p>
-            <h2 className="mt-3 font-display text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
-              Free shipping. Earlier drops. Better prices.
-            </h2>
-            <p className="mt-4 max-w-md text-base text-slate-600">
-              Join Onsective Prime for unlimited free standard shipping, member-only
-              prices, and 24-hour early access to every new collection.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link
-                href="/account/prime"
-                className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
-              >
-                Try Prime free for 30 days <ArrowRight size={14} />
-              </Link>
-              <Link
-                href="/account/prime"
-                className="text-sm font-medium text-slate-700 underline-offset-4 transition-colors hover:text-slate-900 hover:underline"
-              >
-                Learn more
-              </Link>
+              </div>
             </div>
           </div>
-          <div className="relative hidden md:block">
-            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-amber-200/50 to-rose-200/30 blur-3xl" />
-            <div className="relative grid grid-cols-3 gap-3">
-              {['Free shipping', 'Early access', 'Members-only', 'Curated picks', 'Easy returns', 'Priority support'].map(
-                (label) => (
-                  <div
-                    key={label}
-                    className="flex aspect-square items-center justify-center rounded-2xl bg-white p-4 text-center text-xs font-medium text-slate-700 shadow-sm"
+        </div>
+      </section>
+
+      {/* THIN DIVIDER */}
+      <div className="container-page">
+        <div className="border-t border-slate-200" />
+      </div>
+
+      {/* CATEGORIES — editorial list, no cards */}
+      <section className="bg-white">
+        <div className="container-page py-32 md:py-40">
+          <div className="grid grid-cols-1 gap-16 md:grid-cols-12">
+            <div className="md:col-span-4">
+              <p className="text-[11px] font-medium uppercase tracking-[0.32em] text-slate-500">
+                Departments
+              </p>
+              <h2 className="mt-8 font-display text-5xl font-normal leading-[1.05] tracking-[-0.02em] text-slate-950 md:text-6xl">
+                Eight rooms.
+                <br />
+                <em className="italic text-slate-400">Quietly</em> curated.
+              </h2>
+            </div>
+            <ul className="md:col-span-8 md:pl-8">
+              {categories.map((c, i) => (
+                <li
+                  key={c.id}
+                  className={i === 0 ? 'border-y border-slate-200' : 'border-b border-slate-200'}
+                >
+                  <Link
+                    href={`/category/${c.slug}`}
+                    className="group flex items-baseline justify-between gap-8 py-8 transition-colors"
                   >
-                    {label}
-                  </div>
-                ),
-              )}
+                    <div className="flex items-baseline gap-8">
+                      <span className="font-display text-sm tabular-nums text-slate-400">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <span className="font-display text-3xl font-normal tracking-[-0.01em] text-slate-900 transition-colors group-hover:text-slate-500 md:text-4xl">
+                        {c.name}
+                      </span>
+                    </div>
+                    <ArrowUpRight
+                      size={20}
+                      strokeWidth={1}
+                      className="text-slate-400 transition-all group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-slate-900"
+                    />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* MANIFESTO — quiet block, single statement */}
+      <section className="bg-stone-50">
+        <div className="container-page py-32 md:py-44">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-[11px] font-medium uppercase tracking-[0.32em] text-slate-500">
+              Our standard
+            </p>
+            <p className="mt-12 font-display text-3xl font-normal leading-[1.25] tracking-[-0.01em] text-slate-900 sm:text-4xl md:text-5xl">
+              Every piece in the catalogue is{' '}
+              <em className="italic text-slate-500">vetted, photographed,</em> and
+              shipped against a single standard — the one we&rsquo;d hold for
+              ourselves.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* DROP — empty state or product strip */}
+      <section className="bg-white">
+        <div className="container-page py-32 md:py-40">
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-[0.32em] text-slate-500">
+                Latest
+              </p>
+              <h2 className="mt-8 font-display text-5xl font-normal leading-[1.05] tracking-[-0.02em] text-slate-950 md:text-6xl">
+                The current drop.
+              </h2>
+            </div>
+            <Link
+              href="/trending"
+              className="group hidden items-center gap-2 text-[13px] font-medium uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-slate-900 sm:inline-flex"
+            >
+              View all
+              <ArrowUpRight
+                size={14}
+                strokeWidth={1.5}
+                className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              />
+            </Link>
+          </div>
+
+          {productCount === 0 ? (
+            <div className="mt-20 grid grid-cols-1 gap-px bg-slate-200 sm:grid-cols-2 md:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="flex aspect-[3/4] flex-col items-center justify-center bg-white p-10 text-center"
+                >
+                  <p className="font-display text-xs uppercase tracking-[0.32em] text-slate-300">
+                    Coming
+                  </p>
+                  <p className="mt-3 font-display text-3xl italic font-normal text-slate-300">
+                    soon
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-16 grid grid-cols-1 gap-12 sm:grid-cols-2 md:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <article key={i} className="group">
+                  <div className="aspect-[4/5] bg-slate-100" />
+                  <p className="mt-4 font-display text-base text-slate-900">Product name</p>
+                  <p className="mt-1 text-sm text-slate-500">$00</p>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* CLOSING — split letter / sellers */}
+      <section className="border-t border-slate-200 bg-white">
+        <div className="container-page py-32 md:py-44">
+          <div className="grid grid-cols-1 gap-20 md:grid-cols-12">
+            <div className="md:col-span-7">
+              <p className="text-[11px] font-medium uppercase tracking-[0.32em] text-slate-500">
+                For makers
+              </p>
+              <h2 className="mt-10 font-display text-5xl font-normal leading-[1.05] tracking-[-0.02em] text-slate-950 md:text-6xl">
+                Sell to a quiet,{' '}
+                <em className="italic text-slate-400">discerning</em> world.
+              </h2>
+              <p className="mt-10 max-w-xl text-base leading-relaxed text-slate-600">
+                We carry a small number of sellers. We promote them honestly. We
+                pay weekly. We handle the cross-border tax and the support tickets
+                so the maker stays the maker.
+              </p>
+              <Link
+                href="/sell"
+                className="group mt-12 inline-flex items-center gap-3 border-b border-slate-900 pb-1 text-[13px] font-medium uppercase tracking-[0.18em] text-slate-900 transition-opacity hover:opacity-60"
+              >
+                Apply to sell
+                <ArrowUpRight
+                  size={14}
+                  strokeWidth={1.5}
+                  className="transition-transform group-hover:translate-x-1 group-hover:-translate-y-1"
+                />
+              </Link>
+            </div>
+            <div className="md:col-span-5 md:pl-8">
+              <dl className="space-y-12 border-l border-slate-200 pl-8">
+                <Stat label="Commission" value="8 — 15%" sub="Tiered by category. No subscription." />
+                <Stat label="Payouts" value="Weekly" sub="Direct to bank via Stripe Connect." />
+                <Stat label="Markets" value="80+" sub="With customs handled centrally." />
+              </dl>
             </div>
           </div>
         </div>
@@ -208,68 +248,16 @@ export default async function HomePage() {
   );
 }
 
-function TrustItem({ icon: Icon, label }: { icon: typeof Truck; label: string }) {
+function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="flex items-center gap-3 text-sm text-white/70">
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 backdrop-blur">
-        <Icon size={16} strokeWidth={1.75} />
-      </span>
-      {label}
+    <div>
+      <dt className="text-[11px] font-medium uppercase tracking-[0.32em] text-slate-400">
+        {label}
+      </dt>
+      <dd className="mt-3 font-display text-4xl font-normal tracking-[-0.02em] text-slate-900">
+        {value}
+      </dd>
+      <p className="mt-3 text-sm text-slate-500">{sub}</p>
     </div>
-  );
-}
-
-function FeatureCard({
-  tone,
-  eyebrow,
-  title,
-  body,
-  href,
-  cta,
-}: {
-  tone: 'dark' | 'light';
-  eyebrow: string;
-  title: string;
-  body: string;
-  href: string;
-  cta: string;
-}) {
-  const isDark = tone === 'dark';
-  return (
-    <Link
-      href={href}
-      className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl p-10 transition-all hover:-translate-y-1 sm:p-12 md:min-h-[320px] ${
-        isDark
-          ? 'bg-slate-950 text-white hover:shadow-[0_20px_60px_rgba(2,6,23,0.45)]'
-          : 'border border-slate-200 bg-white text-slate-900 hover:shadow-[0_20px_60px_rgba(0,0,0,0.08)]'
-      }`}
-    >
-      <div>
-        <p
-          className={`text-xs font-semibold uppercase tracking-[0.18em] ${
-            isDark ? 'text-amber-300' : 'text-slate-500'
-          }`}
-        >
-          {eyebrow}
-        </p>
-        <h3 className="mt-4 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-          {title}
-        </h3>
-        <p
-          className={`mt-4 max-w-md text-base ${
-            isDark ? 'text-white/70' : 'text-slate-600'
-          }`}
-        >
-          {body}
-        </p>
-      </div>
-      <span
-        className={`mt-10 inline-flex w-fit items-center gap-2 text-sm font-semibold transition-transform group-hover:translate-x-1 ${
-          isDark ? 'text-white' : 'text-slate-900'
-        }`}
-      >
-        {cta} <ArrowRight size={16} />
-      </span>
-    </Link>
   );
 }

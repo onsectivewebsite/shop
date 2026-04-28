@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
+import { Inter, Fraunces } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
@@ -16,9 +16,11 @@ const inter = Inter({
   display: 'swap',
 });
 
-const display = Plus_Jakarta_Sans({
+const display = Fraunces({
   subsets: ['latin'],
-  weight: ['500', '600', '700', '800'],
+  weight: ['300', '400', '500', '600'],
+  style: ['normal', 'italic'],
+  axes: ['opsz', 'SOFT'],
   variable: '--font-display',
   display: 'swap',
 });

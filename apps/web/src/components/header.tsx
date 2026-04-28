@@ -11,10 +11,9 @@ export function Header() {
         <div className="flex h-20 items-center gap-6">
           <Link
             href="/"
-            className="flex items-baseline gap-1 text-2xl font-semibold tracking-tight text-slate-900"
+            className="font-display text-[26px] font-normal tracking-[-0.02em] text-slate-950"
           >
-            <span>Onsective</span>
-            <span className="h-1.5 w-1.5 rounded-full bg-cta-500" aria-hidden />
+            Onsective<span className="text-slate-400">.</span>
           </Link>
 
           <div className="relative hidden flex-1 md:block">
