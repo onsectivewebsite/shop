@@ -1,0 +1,43 @@
+{
+  "name": "onsective",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.10",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "e2e:fixtures": "tsx e2e/fixtures.ts",
+    "type-check": "turbo type-check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "pnpm --filter @onsective/db generate",
+    "db:migrate": "pnpm --filter @onsective/db migrate",
+    "db:studio": "pnpm --filter @onsective/db studio",
+    "db:seed": "pnpm --filter @onsective/db seed",
+    "clean": "turbo clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@onsective/auth": "workspace:*",
+    "@onsective/db": "workspace:*",
+    "@playwright/test": "^1.49.1",
+    "prettier": "^3.3.3",
+    "tsx": "^4.19.2",
+    "prettier-plugin-tailwindcss": "^0.6.8",
+    "turbo": "^2.3.0",
+    "typescript": "^5.6.3"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "singleQuote": true,
+    "trailingComma": "all",
+    "plugins": ["prettier-plugin-tailwindcss"]
+  }
+}

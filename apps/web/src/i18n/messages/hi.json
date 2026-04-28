@@ -1,0 +1,53 @@
+{
+  "brand": {
+    "name": "Onsective",
+    "tagline": "विश्वास के साथ बनाया गया वैश्विक मार्केटप्लेस।"
+  },
+  "nav": {
+    "search": "उत्पाद, ब्रांड और श्रेणियाँ खोजें",
+    "wishlist": "विशलिस्ट",
+    "cart": "कार्ट",
+    "account": "खाता",
+    "login": "साइन इन करें",
+    "categories": {
+      "electronics": "इलेक्ट्रॉनिक्स",
+      "fashion": "फ़ैशन",
+      "home": "होम",
+      "beauty": "ब्यूटी",
+      "books": "किताबें",
+      "toys": "खिलौने",
+      "grocery": "किराना",
+      "more": "और"
+    }
+  },
+  "home": {
+    "hero": {
+      "headline": "दुनिया भर के विक्रेताओं से आपकी हर चाहत",
+      "subheadline": "विश्वसनीय विक्रेता, तेज़ डिलीवरी और दुनिया का सर्वश्रेष्ठ।",
+      "ctaPrimary": "अभी खरीदें",
+      "ctaSecondary": "विक्रेता बनें"
+    },
+    "sections": {
+      "shopByCategory": "श्रेणी से खरीदें",
+      "trending": "अभी चलन में",
+      "newArrivals": "नए आगमन",
+      "seeAll": "सभी देखें"
+    }
+  },
+  "footer": {
+    "about": "Onsective के बारे में",
+    "careers": "करियर",
+    "press": "प्रेस",
+    "help": "सहायता केंद्र",
+    "trackOrder": "ऑर्डर ट्रैक करें",
+    "returns": "रिटर्न",
+    "contact": "संपर्क करें",
+    "becomeSeller": "विक्रेता बनें",
+    "sellerPolicies": "विक्रेता नीतियाँ",
+    "pricing": "मूल्य निर्धारण",
+    "privacy": "गोपनीयता",
+    "terms": "शर्तें",
+    "cookies": "कुकीज़",
+    "copyright": "© 2026 Onsective. सभी अधिकार सुरक्षित।"
+  }
+}

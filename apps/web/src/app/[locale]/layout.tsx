@@ -1,0 +1,57 @@
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
+import { notFound } from 'next/navigation';
+import { Header } from '@/components/header';
+import { Footer } from '@/components/footer';
+import { TRPCProvider } from '@/components/trpc-provider';
+import { ImpersonationBanner } from '@/components/impersonation-banner';
+import { locales, type Locale } from '@/i18n/config';
+import '../globals.css';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+export const metadata: Metadata = {
+  title: {
+    default: 'Onsective — A worldwide marketplace',
+    template: '%s · Onsective',
+  },
+  description: 'Trusted sellers, fast delivery, the best of the world.',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
+};
+
+export function generateStaticParams() {
+  return locales.map((locale) => ({ locale }));
+}
+
+export default async function LocaleLayout({
+  children,
+  params: { locale },
+}: {
+  children: React.ReactNode;
+  params: { locale: string };
+}) {
+  if (!locales.includes(locale as Locale)) notFound();
+
+  const messages = await getMessages();
+
+  return (
+    <html lang={locale} className={inter.variable}>
+      <body>
+        <TRPCProvider>
+          <NextIntlClientProvider messages={messages}>
+            <ImpersonationBanner />
+            <Header />
+            <main>{children}</main>
+            <Footer />
+          </NextIntlClientProvider>
+        </TRPCProvider>
+      </body>
+    </html>
+  );
+}

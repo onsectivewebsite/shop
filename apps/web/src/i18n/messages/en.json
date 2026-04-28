@@ -1,0 +1,53 @@
+{
+  "brand": {
+    "name": "Onsective",
+    "tagline": "A worldwide marketplace, built for trust."
+  },
+  "nav": {
+    "search": "Search products, brands, and categories",
+    "wishlist": "Wishlist",
+    "cart": "Cart",
+    "account": "Account",
+    "login": "Sign in",
+    "categories": {
+      "electronics": "Electronics",
+      "fashion": "Fashion",
+      "home": "Home",
+      "beauty": "Beauty",
+      "books": "Books",
+      "toys": "Toys",
+      "grocery": "Grocery",
+      "more": "More"
+    }
+  },
+  "home": {
+    "hero": {
+      "headline": "Everything you want, from sellers worldwide",
+      "subheadline": "Trusted sellers, fast delivery, and the best of what the world has to offer.",
+      "ctaPrimary": "Shop now",
+      "ctaSecondary": "Become a seller"
+    },
+    "sections": {
+      "shopByCategory": "Shop by category",
+      "trending": "Trending now",
+      "newArrivals": "New arrivals",
+      "seeAll": "See all"
+    }
+  },
+  "footer": {
+    "about": "About Onsective",
+    "careers": "Careers",
+    "press": "Press",
+    "help": "Help center",
+    "trackOrder": "Track order",
+    "returns": "Returns",
+    "contact": "Contact us",
+    "becomeSeller": "Become a seller",
+    "sellerPolicies": "Seller policies",
+    "pricing": "Pricing",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "cookies": "Cookies",
+    "copyright": "© 2026 Onsective. All rights reserved."
+  }
+}

@@ -1,0 +1,1432 @@
+// Onsective — Marketplace Database Schema (Phase 1 + scaffolding for Phase 2-3)
+// Postgres 16 · Prisma 5 · Multi-tenant by seller_id, region-aware
+//
+// Conventions:
+//   - All money: store as integer minor units (cents/paise) + ISO currency code. NEVER float.
+//   - All timestamps: TIMESTAMPTZ, default now(), updated_at on update.
+//   - Soft-delete via deleted_at where audit matters; hard-delete elsewhere.
+//   - Every table has id (cuid), created_at, updated_at.
+//   - Row-level security enforced in app layer (Prisma middleware) AND DB (Postgres RLS) for multi-tenant tables.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USERS, AUTH, ADDRESSES
+// ============================================================================
+
+enum UserRole {
+  BUYER
+  SELLER
+  SUPPORT_AGENT
+  PLATFORM_MANAGER     // ops staff — see PLATFORM_MANAGER.md
+  CATALOG_MODERATOR    // Phase 4 specialist
+  FINANCE_OPS          // Phase 4 specialist
+  ADMIN
+  OWNER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+model User {
+  id             String     @id @default(cuid())
+  email          String     @unique
+  emailVerified  DateTime?
+  phone          String?    @unique
+  phoneVerified  DateTime?
+  passwordHash   String?    // null if OAuth/OTP-only
+  fullName       String?
+  locale         String     @default("en-US") // BCP 47
+  countryCode    String     // ISO 3166-1 alpha-2 — drives tax/shipping rules
+  roles          UserRole[] @default([BUYER])
+  status         UserStatus @default(ACTIVE)
+  lastLoginAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  deletedAt      DateTime?
+
+  addresses      Address[]
+  seller         Seller?
+  carts          Cart[]
+  orders         Order[]
+  reviews        Review[]
+  sessions       Session[]
+  otps           Otp[]
+  passkeys       Passkey[]
+  webauthnChallenges WebAuthnChallenge[]
+  primeMembership PrimeMembership?
+  returns        Return[]
+  organizationMemberships OrganizationMember[]
+
+  @@index([countryCode])
+  @@index([status])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash    String   @unique
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  // When set, this is a PM impersonating the user. All mutations must be blocked.
+  impersonationSessionId String?
+  impersonation          ImpersonationSession? @relation(fields: [impersonationSessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([impersonationSessionId])
+}
+
+model Otp {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel    String   // 'email' | 'sms'
+  destination String  // email or phone
+  codeHash   String
+  purpose    String   // 'login' | 'verify' | 'password_reset'
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([destination, purpose])
+}
+
+// ============================================================================
+// PASSKEYS / WEBAUTHN
+// ============================================================================
+
+model Passkey {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // base64url encoded credential identifier (rawId from the authenticator)
+  credentialId    String   @unique
+  // CBOR-encoded COSE public key, stored as bytes
+  publicKey       Bytes
+  // Replay-protection counter; must monotonically increase per assertion
+  counter         BigInt   @default(0)
+  // Hint set: 'usb' | 'nfc' | 'ble' | 'internal' | 'hybrid'
+  transports      String[]
+  // 'singleDevice' | 'multiDevice' — multi means it's likely synced (Apple/Google)
+  deviceType      String?
+  backedUp        Boolean  @default(false)
+  // User-supplied label e.g. "iPhone 16 Pro"
+  name            String?
+  createdAt       DateTime @default(now())
+  lastUsedAt      DateTime?
+
+  @@index([userId])
+}
+
+enum WebAuthnChallengeType {
+  REGISTER
+  AUTHENTICATE
+}
+
+model WebAuthnChallenge {
+  id        String                @id @default(cuid())
+  userId    String?
+  user      User?                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Lookup key when there is no userId yet (passwordless login by email).
+  email     String?
+  type      WebAuthnChallengeType
+  // base64url challenge bytes Stripe-issued by simplewebauthn/server
+  challenge String
+  expiresAt DateTime
+  createdAt DateTime              @default(now())
+
+  @@index([userId, type])
+  @@index([email, type])
+  @@index([expiresAt])
+}
+
+enum AddressType {
+  SHIPPING
+  BILLING
+  PICKUP   // seller's pickup origin
+}
+
+model Address {
+  id           String      @id @default(cuid())
+  userId       String?
+  user         User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sellerId     String?
+  seller       Seller?     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  type         AddressType
+  label        String?     // 'Home', 'Office', 'Warehouse 1'
+  recipient    String      // person name
+  phone        String
+  line1        String
+  line2        String?
+  city         String
+  state        String      // or province
+  postalCode   String
+  countryCode  String      // ISO 3166-1 alpha-2
+  isDefault    Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  ordersShipping Order[]   @relation("OrderShippingAddress")
+  ordersBilling  Order[]   @relation("OrderBillingAddress")
+
+  @@index([userId])
+  @@index([sellerId])
+  @@index([countryCode, postalCode])
+}
+
+// ============================================================================
+// SELLERS, KYC, STRIPE CONNECT
+// ============================================================================
+
+enum SellerStatus {
+  PENDING_KYC
+  KYC_SUBMITTED
+  APPROVED
+  SUSPENDED
+  REJECTED
+}
+
+model Seller {
+  id                  String       @id @default(cuid())
+  userId              String       @unique
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  legalName           String
+  displayName         String
+  slug                String       @unique
+  description         String?
+  logoUrl             String?
+  countryCode         String       // ISO 3166-1 alpha-2; restricts where they can sell from
+  taxId               String?      // GSTIN / EIN / VAT number
+  status              SellerStatus @default(PENDING_KYC)
+  ratingAvg           Float        @default(0)
+  ratingCount         Int          @default(0)
+
+  // Stripe Connect
+  stripeAccountId     String?      @unique
+  stripeOnboardedAt   DateTime?
+  stripePayoutsEnabled Boolean     @default(false)
+
+  // Defaults
+  defaultCommissionPct Decimal     @default(10.0) @db.Decimal(5, 2) // can be category-overridden
+
+  approvedAt          DateTime?
+  approvedBy          String?      // admin user id
+  suspendedAt         DateTime?
+  suspendedReason     String?
+
+  // Cross-border policy (Phase 4)
+  // Empty = domestic only (matches `countryCode`). Otherwise the seller has
+  // been cleared by ops to ship to these destinations. Decision belongs to
+  // legal/tax — code only enforces the gate.
+  allowedDestinationCountries String[]
+  // Default Incoterm when shipping cross-border. 'DDP' = seller pays duties,
+  // 'DAP' = buyer pays at delivery. Only DDP is supported in v1 — DAP needs
+  // carrier collect-on-delivery integration.
+  defaultIncoterm     String?      // 'DDP' | 'DAP'
+
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  addresses           Address[]
+  products            Product[]
+  orderItems          OrderItem[]
+  shipments           Shipment[]
+  payouts             Payout[]
+  kycDocuments        KycDocument[]
+  ledgerEntries       LedgerEntry[]
+  adCampaigns         AdCampaign[]
+  returns             Return[]
+
+  @@index([countryCode])
+  @@index([status])
+}
+
+enum KycDocType {
+  GOVT_ID
+  TAX_CERTIFICATE
+  BANK_STATEMENT
+  BUSINESS_REGISTRATION
+  ADDRESS_PROOF
+}
+
+enum KycDocStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model KycDocument {
+  id         String       @id @default(cuid())
+  sellerId   String
+  seller     Seller       @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  type       KycDocType
+  fileKey    String       // S3 key
+  status     KycDocStatus @default(PENDING)
+  notes      String?
+  reviewedAt DateTime?
+  reviewedBy String?
+  createdAt  DateTime     @default(now())
+
+  @@index([sellerId, status])
+}
+
+// ============================================================================
+// CATALOG: CATEGORY, PRODUCT, VARIANT, INVENTORY
+// ============================================================================
+
+model Category {
+  id           String     @id @default(cuid())
+  parentId     String?
+  parent       Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children     Category[] @relation("CategoryTree")
+  slug         String     @unique
+  name         String
+  description  String?
+  imageUrl     String?
+  commissionPct Decimal?  @db.Decimal(5, 2) // overrides seller default
+  sortOrder    Int        @default(0)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  products     Product[]
+
+  @@index([parentId])
+}
+
+enum ProductStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  PAUSED
+  REJECTED
+  ARCHIVED
+}
+
+model Product {
+  id            String        @id @default(cuid())
+  sellerId      String
+  seller        Seller        @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  categoryId    String
+  category      Category      @relation(fields: [categoryId], references: [id])
+  title         String
+  slug          String        @unique
+  brand         String?
+  description   String        @db.Text
+  bullets       String[]      // marketing bullets
+  images        String[]      // S3 keys / URLs in display order
+  status        ProductStatus @default(DRAFT)
+  countryCode   String        // sale region — must match seller's country in v1 (no cross-border)
+  attributes    Json?         // category-specific: { color, size, material... }
+
+  // Search / discovery
+  searchKeywords String[]
+  /// Generated tsvector populated from (title, brand, description) by SQL.
+  /// Prisma can't introspect/generate it directly — see migration
+  /// 20260427120000_passkeys_impersonation_fts. Queried via $queryRaw.
+  searchVector  Unsupported("tsvector")?
+  ratingAvg     Float         @default(0)
+  ratingCount   Int           @default(0)
+  salesCount    Int           @default(0)
+
+  // Cross-border (Phase 4)
+  // HS code (Harmonized System) for customs classification. Required to ship
+  // internationally. 6-digit base, optionally 8 or 10 for country specificity.
+  hsCode             String?
+  // Country of origin / manufacture (ISO-3166-1 alpha-2). Buyer-facing label
+  // and customs requirement. Defaults to seller's country if unset.
+  originCountryCode  String?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  publishedAt   DateTime?
+
+  variants      Variant[]
+  reviews       Review[]
+  questions     ProductQuestion[]
+  adCampaigns   AdCampaign[]
+
+  @@index([sellerId, status])
+  @@index([categoryId, status])
+  @@index([countryCode, status])
+  @@index([slug])
+}
+
+model Variant {
+  id              String     @id @default(cuid())
+  productId       String
+  product         Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku             String     @unique
+  title           String?    // 'Red / Large'
+  attributes      Json       // { color: 'red', size: 'L' }
+
+  // Pricing — minor units, currency-aware
+  priceAmount     Int        // e.g. 1999 = $19.99
+  mrpAmount       Int?       // strikethrough price
+  currency        String     // ISO 4217: 'USD', 'INR'
+
+  // Inventory
+  stockQty        Int        @default(0)
+  reservedQty     Int        @default(0) // reserved by in-flight checkouts
+  reorderPoint    Int        @default(5)
+
+  // Physical
+  weightGrams     Int
+  lengthMm        Int
+  widthMm         Int
+  heightMm        Int
+
+  isActive        Boolean    @default(true)
+  // Phase 5 — Onsective Fulfilled: who picks/packs/ships?
+  fulfillmentMethod FulfillmentMethod @default(SELF)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
+  inventoryLogs   InventoryLog[]
+  warehouseInventory WarehouseInventory[]
+
+  @@index([productId])
+  @@index([sku])
+}
+
+enum InventoryReason {
+  MANUAL_ADJUST
+  ORDER_PLACED
+  ORDER_CANCELLED
+  ORDER_RETURNED
+  RESTOCK
+  DAMAGE
+  RECONCILE
+}
+
+model InventoryLog {
+  id         String          @id @default(cuid())
+  variantId  String
+  variant    Variant         @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  delta      Int             // signed
+  reason     InventoryReason
+  refType    String?         // 'order' | 'manual' | 'return'
+  refId      String?
+  note       String?
+  createdAt  DateTime        @default(now())
+  createdBy  String?
+
+  @@index([variantId, createdAt])
+}
+
+// ============================================================================
+// CART, CHECKOUT
+// ============================================================================
+
+model Cart {
+  id          String     @id @default(cuid())
+  userId      String?    // nullable — guest carts use sessionId
+  user        User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId   String?    @unique
+  currency    String     // locked at first add
+  countryCode String     // delivery region
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  items       CartItem[]
+
+  @@index([userId])
+}
+
+model CartItem {
+  id         String   @id @default(cuid())
+  cartId     String
+  cart       Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variantId  String
+  variant    Variant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  qty        Int
+  priceSnapshot Int   // captured at add-time; refreshed on view if stale
+  currency   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([cartId, variantId])
+}
+
+// ============================================================================
+// ORDERS — the heart of the system
+// ============================================================================
+
+enum OrderStatus {
+  CREATED         // cart converted, awaiting payment
+  PAYMENT_PENDING
+  PAID            // payment captured
+  CONFIRMED       // sellers notified
+  PARTIALLY_SHIPPED
+  SHIPPED
+  PARTIALLY_DELIVERED
+  DELIVERED
+  COMPLETED       // return window closed
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  FAILED
+}
+
+model Order {
+  id                  String      @id @default(cuid())
+  orderNumber         String      @unique // human-friendly: ONS-2026-00001
+  buyerId             String
+  buyer               User        @relation(fields: [buyerId], references: [id])
+  status              OrderStatus @default(CREATED)
+  currency            String
+  countryCode         String
+
+  // Money breakdown — all in minor units
+  subtotalAmount      Int         // sum of items
+  shippingAmount      Int
+  taxAmount           Int
+  discountAmount      Int         @default(0)
+  totalAmount         Int         // what buyer actually pays
+
+  // Snapshots for audit/refunds
+  shippingAddressId   String
+  shippingAddress     Address     @relation("OrderShippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddressId    String?
+  billingAddress      Address?    @relation("OrderBillingAddress", fields: [billingAddressId], references: [id])
+
+  placedAt            DateTime?
+  cancelledAt         DateTime?
+  cancelledReason     String?
+
+  // B2B linkage. Set when the order was placed by a member of an Organization.
+  // taxExempt = true when an active TaxExemption covered the destination at order time.
+  organizationId      String?
+  organization        Organization? @relation(fields: [organizationId], references: [id])
+  b2bInvoiceId        String?
+  b2bInvoice          B2BInvoice?  @relation(fields: [b2bInvoiceId], references: [id])
+  taxExempt           Boolean      @default(false)
+
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  items               OrderItem[]
+  shipments           Shipment[]
+  payments            Payment[]
+  refunds             Refund[]
+  ledgerEntries       LedgerEntry[]
+  events              OrderEvent[]
+
+  @@index([buyerId, createdAt])
+  @@index([status])
+  @@index([orderNumber])
+}
+
+model OrderItem {
+  id              String      @id @default(cuid())
+  orderId         String
+  order           Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId       String
+  variant         Variant     @relation(fields: [variantId], references: [id])
+  sellerId        String      // denormalized for fast seller queries
+  seller          Seller      @relation(fields: [sellerId], references: [id])
+  shipmentId      String?
+  shipment        Shipment?   @relation(fields: [shipmentId], references: [id])
+
+  // Snapshots — IMMUTABLE after order placement
+  productTitle    String
+  variantTitle    String?
+  sku             String
+  qty             Int
+  unitPrice       Int         // minor units
+  lineSubtotal    Int         // qty * unitPrice
+  taxAmount       Int
+  shippingAmount  Int
+
+  // Commission — frozen at placement
+  commissionPct   Decimal     @db.Decimal(5, 2)
+  commissionAmount Int
+  sellerNetAmount Int         // lineSubtotal - commissionAmount - paymentFee allocation
+
+  // Status (per item — supports partial fulfillment)
+  status          OrderStatus @default(CREATED)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  reviews         Review[]
+  returns         Return[]
+
+  @@index([orderId])
+  @@index([sellerId, status])
+  @@index([variantId])
+}
+
+model OrderEvent {
+  id         String      @id @default(cuid())
+  orderId    String
+  order      Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type       String      // 'placed' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | ...
+  fromStatus OrderStatus?
+  toStatus   OrderStatus?
+  actor      String?     // 'system' | 'buyer' | 'seller' | 'admin:{id}'
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+// ============================================================================
+// PAYMENTS, LEDGER, PAYOUTS, REFUNDS
+// ============================================================================
+
+enum PaymentStatus {
+  INITIATED
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+model Payment {
+  // gatewayRef must be unique so the webhook handler can upsert by it.
+  id              String        @id @default(cuid())
+  orderId         String
+  order           Order         @relation(fields: [orderId], references: [id])
+  gateway         String        // 'stripe' | future: 'razorpay' | 'paypal'
+  gatewayRef      String        @unique // PaymentIntent ID
+  gatewayClientSecret String?   // for SCA flow
+  amount          Int           // minor units
+  currency        String
+  status          PaymentStatus
+  method          String?       // 'card' | 'upi' | 'wallet' | ...
+  feeAmount       Int           @default(0) // gateway fee
+  rawWebhookEvent Json?         // last webhook payload for audit
+  capturedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  refunds         Refund[]
+
+  @@index([orderId])
+}
+
+model Refund {
+  id           String   @id @default(cuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id])
+  paymentId    String
+  payment      Payment  @relation(fields: [paymentId], references: [id])
+  amount       Int
+  currency     String
+  reason       String
+  gatewayRef   String?
+  status       String   // 'pending' | 'succeeded' | 'failed'
+  createdAt    DateTime @default(now())
+  processedAt  DateTime?
+
+  return       Return?  // back-relation when refund originated from an RMA
+
+  @@index([orderId])
+}
+
+// Double-entry style ledger — never derive money from joins at runtime
+enum LedgerAccount {
+  PLATFORM_REVENUE      // commission earned
+  PLATFORM_LIABILITY    // money held for sellers
+  SELLER_PAYABLE        // owed to seller
+  SELLER_PAID           // paid out to seller
+  GATEWAY_FEES          // paid to Stripe etc
+  TAX_PAYABLE           // owed to tax authority
+  REFUND_LIABILITY      // owed back to buyer
+  BUYER_RECEIVABLE      // money received from buyer
+}
+
+enum LedgerDirection {
+  DEBIT
+  CREDIT
+}
+
+model LedgerEntry {
+  id          String          @id @default(cuid())
+  account     LedgerAccount
+  direction   LedgerDirection
+  amount      Int
+  currency    String
+  orderId     String?
+  order       Order?          @relation(fields: [orderId], references: [id])
+  sellerId    String?
+  seller      Seller?         @relation(fields: [sellerId], references: [id])
+  payoutId    String?
+  payout      Payout?         @relation(fields: [payoutId], references: [id])
+  refType     String?         // 'order' | 'refund' | 'payout' | 'adjustment'
+  refId       String?
+  description String
+  createdAt   DateTime        @default(now())
+
+  @@index([sellerId, account])
+  @@index([orderId])
+  @@index([payoutId])
+  @@index([createdAt])
+}
+
+enum PayoutStatus {
+  PENDING
+  IN_TRANSIT
+  PAID
+  FAILED
+  CANCELLED
+}
+
+model Payout {
+  id              String        @id @default(cuid())
+  sellerId        String
+  seller          Seller        @relation(fields: [sellerId], references: [id])
+  amount          Int
+  currency        String
+  status          PayoutStatus  @default(PENDING)
+  gateway         String        // 'stripe'
+  gatewayRef      String?       // Stripe transfer/payout ID
+  periodStart     DateTime
+  periodEnd       DateTime
+  scheduledFor    DateTime
+  paidAt          DateTime?
+  failureReason   String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  ledgerEntries   LedgerEntry[]
+
+  @@index([sellerId, status])
+  @@index([scheduledFor, status])
+}
+
+// ============================================================================
+// ONSECTIVE ADS — Phase 5: sponsored placements (search results, PDPs)
+// Auction model: per-impression second-price; budget caps; daily reset.
+// ============================================================================
+
+enum AdCampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  EXHAUSTED  // budget hit
+  ENDED
+}
+
+enum AdPlacement {
+  SEARCH_RESULTS
+  PDP_RELATED
+  HOME_FEATURED
+}
+
+model AdCampaign {
+  id             String           @id @default(cuid())
+  sellerId       String
+  seller         Seller           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  name           String
+  productId      String           // single product for v1
+  product        Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  placement      AdPlacement
+  // Bid in minor units per click (CPC). Auction takes the second price.
+  bidCpcMinor    Int
+  currency       String
+  // Targeting (v1: just keywords). Empty = match all queries in placement.
+  keywords       String[]
+  // Budget caps
+  dailyBudgetMinor Int
+  totalBudgetMinor Int?
+  spentTodayMinor  Int            @default(0)
+  spentTotalMinor  Int            @default(0)
+  // Daily reset stamp — cron flips spentTodayMinor back to 0.
+  spentTodayResetAt DateTime?
+  status         AdCampaignStatus @default(DRAFT)
+  startsAt       DateTime
+  endsAt         DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  impressions    AdImpression[]
+  clicks         AdClick[]
+
+  @@index([status, placement])
+  @@index([sellerId])
+  @@index([productId])
+}
+
+model AdImpression {
+  id           String     @id @default(cuid())
+  campaignId   String
+  campaign     AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sessionId    String?    // bot-filter join key
+  query        String?    // search query that produced the impression, if any
+  placement    AdPlacement
+  ipAddressHash String?   // sha-256 of IP — never store raw IP for ads
+  userAgentHash String?
+  occurredAt   DateTime   @default(now())
+
+  clicks       AdClick[]
+
+  @@index([campaignId, occurredAt])
+}
+
+model AdClick {
+  id            String       @id @default(cuid())
+  campaignId    String
+  campaign      AdCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  impressionId  String?
+  impression    AdImpression? @relation(fields: [impressionId], references: [id], onDelete: SetNull)
+  sessionId     String?
+  // The price actually charged (second-price + fees).
+  chargedMinor  Int
+  currency      String
+  // Bot detection: clicks flagged here don't bill. Reasoned via UA/IP density.
+  filtered      Boolean      @default(false)
+  filterReason  String?
+  occurredAt    DateTime     @default(now())
+
+  @@index([campaignId, occurredAt])
+}
+
+// ============================================================================
+// ONSECTIVE PRIME — Phase 5: paid membership with shipping + content benefits
+// ============================================================================
+
+enum PrimeStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  PAYMENT_FAILED
+}
+
+enum PrimePlan {
+  MONTHLY
+  ANNUAL
+}
+
+model PrimeMembership {
+  id                  String      @id @default(cuid())
+  userId              String      @unique
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                PrimePlan
+  status              PrimeStatus @default(ACTIVE)
+  // Stripe subscription handle. We let Stripe own the billing schedule.
+  stripeSubscriptionId String?    @unique
+  stripeCustomerId    String?
+  startedAt           DateTime    @default(now())
+  // The end of the current paid period — after this, status moves to
+  // CANCELLED unless renewed (Stripe webhook drives the transition).
+  currentPeriodEnd    DateTime
+  cancelledAt         DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@index([status, currentPeriodEnd])
+}
+
+// ============================================================================
+// ONSECTIVE FULFILLED — Phase 5: warehouse + per-warehouse inventory
+// Sellers ship inventory in; we store, pick, pack, ship.
+// ============================================================================
+
+enum FulfillmentMethod {
+  SELF              // seller ships from their own location (v1 default)
+  ONSECTIVE         // we hold + ship from our warehouse (Fulfilled by Onsective)
+}
+
+model Warehouse {
+  id           String   @id @default(cuid())
+  code         String   @unique // 'IAD1', 'BOM1' — IATA-style
+  name         String
+  countryCode  String   // ISO 3166-1 alpha-2
+  // Snapshot of physical address so receiving labels print without joining.
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  postalCode   String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  inventory    WarehouseInventory[]
+
+  @@index([countryCode, isActive])
+}
+
+model WarehouseInventory {
+  id           String     @id @default(cuid())
+  warehouseId  String
+  warehouse    Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  variantId    String
+  variant      Variant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  quantity     Int        @default(0)
+  reservedQty  Int        @default(0)
+  // Set when an inbound shipment is received and counted in.
+  lastInboundAt  DateTime?
+  // Triggers replenishment notification when stock falls below this.
+  reorderPoint Int        @default(5)
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([warehouseId, variantId])
+  @@index([variantId])
+}
+
+// ============================================================================
+// SHIPPING — Phase 3 but scaffolded now so order can reference it
+// ============================================================================
+
+enum ShipmentStatus {
+  PENDING            // created but no carrier yet
+  LABEL_CREATED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  RTO_INITIATED
+  RTO_DELIVERED
+  EXCEPTION
+  LOST
+  CANCELLED
+}
+
+model Shipment {
+  id                  String          @id @default(cuid())
+  shipmentNumber      String          @unique
+  orderId             String
+  order               Order           @relation(fields: [orderId], references: [id])
+  sellerId            String
+  seller              Seller          @relation(fields: [sellerId], references: [id])
+
+  carrier             String?         // 'ups' | 'fedex' | 'delhivery' | ...
+  carrierService      String?         // 'ground' | 'express'
+  awbNumber           String?         @unique
+  trackingUrl         String?
+  labelUrl            String?         // S3 key for PDF label
+  manifestUrl         String?
+
+  fromAddressId       String          // pickup address
+  toAddressId         String          // delivery address (snapshot of order address)
+
+  weightGrams         Int
+  lengthMm            Int
+  widthMm             Int
+  heightMm            Int
+  declaredValue       Int             // for insurance/customs (minor units)
+  currency            String
+
+  shippingCost        Int             // what carrier charges Onsective
+  shippingChargedToBuyer Int          // what buyer paid
+
+  status              ShipmentStatus  @default(PENDING)
+  pickupScheduledAt   DateTime?
+  pickedUpAt          DateTime?
+  deliveredAt         DateTime?
+  expectedDeliveryAt  DateTime?
+
+  rawCarrierPayload   Json?           // last rate-shop response
+
+  // Cross-border (Phase 4) — populated only when origin/destination differ.
+  // ISO 3166-1 alpha-2.
+  originCountryCode      String?
+  destinationCountryCode String?
+  // 'DDP' = duties prepaid by seller, 'DAP' = collected at delivery.
+  incoterm               String?
+  // Customs declaration: total declared value + per-item HS codes. The
+  // carrier needs this to file electronic export docs. JSON because the
+  // shape varies by carrier — adapter is the source of truth.
+  customsDeclaration     Json?
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  items               OrderItem[]
+  trackingEvents      TrackingEvent[]
+
+  @@index([orderId])
+  @@index([sellerId, status])
+  @@index([awbNumber])
+  @@index([status, expectedDeliveryAt])
+}
+
+model TrackingEvent {
+  id           String   @id @default(cuid())
+  shipmentId   String
+  shipment     Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  status       String   // normalized status code
+  rawStatus    String?  // carrier's original code
+  description  String
+  location     String?
+  occurredAt   DateTime
+  receivedAt   DateTime @default(now())
+
+  @@index([shipmentId, occurredAt])
+}
+
+// ============================================================================
+// B2B ACCOUNTS — Phase 5: organizations, members, tax-exempt, net-30 invoicing
+// ============================================================================
+
+enum OrgMemberRole {
+  OWNER       // billing + admin + buy
+  ADMIN       // member admin + buy (no billing changes)
+  BUYER       // buy only
+}
+
+enum OrgPaymentTerms {
+  STRIPE_IMMEDIATE  // default — buyer card charged at order
+  NET_30            // we invoice the org; Stripe Invoicing handles dunning
+}
+
+model Organization {
+  id              String          @id @default(cuid())
+  legalName       String
+  slug            String          @unique
+  taxId           String?
+  countryCode     String
+  paymentTerms    OrgPaymentTerms @default(STRIPE_IMMEDIATE)
+  stripeCustomerId String?        @unique
+  creditLimitMinor Int?
+  discountPctBps   Int            @default(0) // basis points (1% = 100)
+  approvedAt       DateTime?
+  approvedBy       String?
+  suspendedAt      DateTime?
+  suspendedReason  String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  members          OrganizationMember[]
+  taxExemptions    TaxExemption[]
+  invoices         B2BInvoice[]
+  orders           Order[]
+
+  @@index([countryCode])
+}
+
+model OrganizationMember {
+  id              String        @id @default(cuid())
+  organizationId  String
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role            OrgMemberRole @default(BUYER)
+  monthlyCapMinor Int?
+  invitedAt       DateTime      @default(now())
+  acceptedAt      DateTime?
+  createdAt       DateTime      @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model TaxExemption {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  jurisdiction    String?      // ISO state/region; null = federal/national
+  certificateKey  String       // S3 key for cert PDF
+  certificateNumber String?
+  validFrom       DateTime
+  validUntil      DateTime?
+  status          String       @default("PENDING") // 'PENDING' | 'APPROVED' | 'REJECTED'
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  createdAt       DateTime     @default(now())
+
+  @@index([organizationId, status])
+  @@index([validUntil])
+}
+
+enum B2BInvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  OVERDUE
+  VOIDED
+  WRITTEN_OFF
+}
+
+model B2BInvoice {
+  id              String           @id @default(cuid())
+  invoiceNumber   String           @unique
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  stripeInvoiceId String?          @unique
+  subtotalMinor   Int
+  taxMinor        Int              @default(0)
+  totalMinor      Int
+  currency        String
+  status          B2BInvoiceStatus @default(DRAFT)
+  issuedAt        DateTime?
+  dueAt           DateTime?
+  paidAt          DateTime?
+  pdfUrl          String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  orders          Order[]
+
+  @@index([organizationId, status])
+  @@index([dueAt, status])
+}
+
+// ============================================================================
+// RETURNS / RMA
+// ============================================================================
+
+enum ReturnStatus {
+  REQUESTED        // buyer asked
+  APPROVED         // seller / ops approved; awaiting receipt
+  REJECTED         // declined; reason recorded
+  RECEIVED         // package arrived back; awaiting inspection
+  REFUNDED         // money returned; closed
+  CANCELLED        // buyer dropped the request
+}
+
+enum ReturnReason {
+  DAMAGED
+  WRONG_ITEM
+  NOT_AS_DESCRIBED
+  NO_LONGER_NEEDED
+  ARRIVED_LATE
+  OTHER
+}
+
+model Return {
+  id              String       @id @default(cuid())
+  rmaNumber       String       @unique // ONS-R-2026-000123
+  orderItemId     String
+  orderItem       OrderItem    @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  buyerId         String
+  buyer           User         @relation(fields: [buyerId], references: [id])
+  sellerId        String
+  seller          Seller       @relation(fields: [sellerId], references: [id])
+  status          ReturnStatus @default(REQUESTED)
+  reason          ReturnReason
+  buyerNote       String?      @db.Text
+  // qty being returned (defaults to OrderItem.qty for full returns)
+  qty             Int
+  // Refund total in minor units. Null until status >= APPROVED.
+  refundAmount    Int?
+  currency        String
+  // Set when ops/seller move state forward, recorded for SLA/audit.
+  decidedAt       DateTime?
+  decidedBy       String?      // PM user id
+  decisionNote    String?      // visible to buyer
+  receivedAt      DateTime?
+  refundedAt      DateTime?
+  // Linked Refund row once Stripe processes the actual refund. Null while
+  // we hold the package — bookkeeping only happens at REFUNDED transition.
+  refundId        String?      @unique
+  refund          Refund?      @relation(fields: [refundId], references: [id])
+  cancelledAt     DateTime?
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([buyerId, status])
+  @@index([sellerId, status])
+  @@index([orderItemId])
+  @@index([status, createdAt])
+}
+
+// ============================================================================
+// REVIEWS, Q&A
+// ============================================================================
+
+model Review {
+  id           String      @id @default(cuid())
+  productId    String
+  product      Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItemId  String      @unique // verified-purchase only
+  orderItem    OrderItem   @relation(fields: [orderItemId], references: [id])
+  buyerId      String
+  buyer        User        @relation(fields: [buyerId], references: [id])
+  rating       Int         // 1..5
+  title        String?
+  body         String?
+  images       String[]
+  sellerReply  String?
+  sellerRepliedAt DateTime?
+  isHidden     Boolean     @default(false)
+  hiddenReason String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([productId, rating])
+  @@index([buyerId])
+}
+
+model ProductQuestion {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  askerId     String
+  question    String
+  answer      String?
+  answeredBy  String?  // seller user id or admin
+  answeredAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([productId])
+}
+
+// ============================================================================
+// COMMISSION RULES, COUPONS — Phase 2
+// ============================================================================
+
+model CommissionRule {
+  id            String   @id @default(cuid())
+  // Match clauses (any null = wildcard)
+  categoryId    String?
+  sellerId      String?
+  countryCode   String?
+  minOrderValue Int?
+  maxOrderValue Int?
+  // Outcome
+  commissionPct Decimal  @db.Decimal(5, 2)
+  priority      Int      @default(0) // higher wins
+  effectiveFrom DateTime @default(now())
+  effectiveTo   DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@index([isActive, priority])
+}
+
+// ============================================================================
+// AUDIT, FEATURE FLAGS, MISC
+// ============================================================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorType  String   // 'user' | 'admin' | 'system'
+  actorId    String?
+  action     String   // 'seller.approve' | 'order.refund' | ...
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([targetType, targetId])
+}
+
+model FeatureFlag {
+  key         String   @id
+  enabled     Boolean  @default(false)
+  rolloutPct  Int      @default(0) // 0..100
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model WebhookEvent {
+  id           String    @id @default(cuid())
+  source       String    // 'stripe' | 'easypost' | 'shippo'
+  externalId   String    @unique // dedupe
+  eventType    String
+  payload      Json
+  receivedAt   DateTime  @default(now())
+  processedAt  DateTime?
+  error        String?
+  attempts     Int       @default(0)
+
+  @@index([source, processedAt])
+}
+
+// ============================================================================
+// PLATFORM MANAGER / SUPPORT — see PLATFORM_MANAGER.md
+// ============================================================================
+
+enum TicketChannel {
+  EMAIL
+  CHAT
+  WEB_FORM
+  PHONE
+  SOCIAL
+  INTERNAL    // PM-created on behalf of a user
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING_CUSTOMER
+  PENDING_INTERNAL
+  ON_HOLD
+  RESOLVED
+  CLOSED
+  REOPENED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model SupportTicket {
+  id                String          @id @default(cuid())
+  ticketNumber      String          @unique // ONS-T-2026-000123
+  channel           TicketChannel
+  subject           String
+  status            TicketStatus    @default(OPEN)
+  priority          TicketPriority  @default(NORMAL)
+
+  // Parties
+  customerId        String?         // user who raised it (buyer or seller)
+  customerEmail     String?         // for unauthenticated submissions
+  assignedToId      String?         // PM user
+  assignedTeam      String?         // 'pm' | 'finance' | 'catalog' | 'eng'
+
+  // Context
+  relatedOrderId    String?
+  relatedSellerId   String?
+  relatedShipmentId String?
+  language          String          @default("en")
+  tags              String[]
+
+  // SLA
+  slaDueAt          DateTime?
+  firstResponseAt   DateTime?
+  resolvedAt        DateTime?
+  reopenCount       Int             @default(0)
+  csatScore         Int?            // 1..5 from post-resolution survey
+  csatComment       String?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  messages          SupportMessage[]
+  approvals         ApprovalRequest[]
+
+  @@index([status, slaDueAt])
+  @@index([assignedToId, status])
+  @@index([customerId])
+  @@index([relatedOrderId])
+  @@index([relatedSellerId])
+}
+
+enum MessageAuthorType {
+  CUSTOMER
+  PLATFORM_MANAGER
+  SYSTEM
+}
+
+model SupportMessage {
+  id           String              @id @default(cuid())
+  ticketId     String
+  ticket       SupportTicket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorType   MessageAuthorType
+  authorId     String?
+  body         String              @db.Text
+  attachments  String[]            // S3 keys
+  isInternal   Boolean             @default(false) // notes invisible to customer
+  templateId   String?             // macro reference
+  createdAt    DateTime            @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  DENIED
+  EXPIRED
+  CANCELLED
+}
+
+model ApprovalRequest {
+  id            String          @id @default(cuid())
+  ticketId      String?
+  ticket        SupportTicket?  @relation(fields: [ticketId], references: [id])
+  requesterId   String          // PM who initiated
+  action        String          // 'refund.large' | 'password.force' | 'kyc.high_risk' | ...
+  payload       Json            // structured action params
+  reason        String          @db.Text
+  status        ApprovalStatus  @default(PENDING)
+  approverId    String?         // second PM who approved
+  approvedAt    DateTime?
+  deniedReason  String?
+  expiresAt     DateTime
+  createdAt     DateTime        @default(now())
+  executedAt    DateTime?
+
+  @@index([status, expiresAt])
+  @@index([requesterId])
+}
+
+enum ImpersonationMode {
+  READ_ONLY    // PM views as user, cannot click
+  FULL         // admin-only, 4-eyes — full session
+}
+
+model ImpersonationSession {
+  id              String            @id @default(cuid())
+  pmId            String
+  targetUserId    String
+  mode            ImpersonationMode @default(READ_ONLY)
+  ticketContextId String?           // ticket that justified this session
+  reason          String            @db.Text
+  startedAt       DateTime          @default(now())
+  endedAt         DateTime?
+  // First time the buyer-side magic link was consumed. Single-use.
+  tokenConsumedAt DateTime?
+  ipAddress       String?
+
+  webSessions     Session[]
+
+  @@index([pmId])
+  @@index([targetUserId])
+}
+
+// Macros / canned responses (Phase 4 but scaffolded)
+model SupportMacro {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  category     String?
+  language     String   @default("en")
+  subject      String?
+  body         String   @db.Text
+  variables    String[] // {{order_number}}, {{buyer_name}}, ...
+  isActive     Boolean  @default(true)
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([category, isActive])
+}
+
+// Per-PM productivity counters (Phase 5 dashboards)
+model PmDailyStats {
+  id                  String   @id @default(cuid())
+  pmId                String
+  date                DateTime @db.Date
+  ticketsAssigned     Int      @default(0)
+  ticketsResolved     Int      @default(0)
+  firstResponseP50    Int?     // seconds
+  firstResponseP95    Int?
+  resolutionP50       Int?
+  resolutionP95       Int?
+  csatAvg             Float?
+  refundsIssuedAmount Int      @default(0)
+  refundsIssuedCount  Int      @default(0)
+  approvalsRequested  Int      @default(0)
+  approvalsDenied     Int      @default(0)
+
+  @@unique([pmId, date])
+  @@index([date])
+}
