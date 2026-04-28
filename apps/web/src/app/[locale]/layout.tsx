@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
@@ -13,6 +13,13 @@ import '../globals.css';
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
+  display: 'swap',
+});
+
+const display = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['500', '600', '700', '800'],
+  variable: '--font-display',
   display: 'swap',
 });
 
@@ -43,7 +50,7 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={inter.variable}>
+    <html lang={locale} className={`${inter.variable} ${display.variable}`}>
       <body>
         <TRPCProvider>
           <NextIntlClientProvider messages={messages}>

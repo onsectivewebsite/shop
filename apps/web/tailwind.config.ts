@@ -22,7 +22,11 @@ const config: Config = {
         background: colors.slate[50],
         foreground: colors.slate[900],
       },
-      fontFamily: typography.fontFamily,
+      fontFamily: {
+        ...typography.fontFamily,
+        sans: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'var(--font-inter)', 'ui-sans-serif', 'sans-serif'],
+      },
       fontSize: typography.fontSize,
       spacing,
       borderRadius: radius,

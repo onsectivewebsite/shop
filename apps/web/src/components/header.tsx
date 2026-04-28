@@ -1,82 +1,91 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Heart, ShoppingCart, User, Search } from 'lucide-react';
-import { Button } from '@onsective/ui';
+import { Heart, ShoppingBag, Search, ChevronDown } from 'lucide-react';
 
 export function Header() {
   const t = useTranslations('nav');
 
   return (
-    <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
       <div className="container-page">
-        {/* Top row: logo + search + actions */}
-        <div className="flex h-16 items-center gap-4">
-          <Link href="/" className="text-xl font-bold tracking-tight text-brand-700">
-            Onsective
+        <div className="flex h-20 items-center gap-6">
+          <Link
+            href="/"
+            className="flex items-baseline gap-1 text-2xl font-semibold tracking-tight text-slate-900"
+          >
+            <span>Onsective</span>
+            <span className="h-1.5 w-1.5 rounded-full bg-cta-500" aria-hidden />
           </Link>
 
           <div className="relative hidden flex-1 md:block">
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
               size={18}
               aria-hidden
             />
             <input
               type="search"
               placeholder={t('search')}
-              className="h-10 w-full rounded-md border border-slate-300 bg-slate-50 pl-10 pr-4 text-sm placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+              className="h-11 w-full rounded-full border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-slate-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-slate-900/5"
             />
           </div>
 
           <nav className="flex items-center gap-1">
-            <Link href="/cart" aria-label={t('cart')}>
-              <Button variant="ghost" size="icon" asChild={false}>
-                <ShoppingCart size={20} />
-              </Button>
+            <Link
+              href="/account/wishlist"
+              aria-label={t('wishlist')}
+              className="hidden h-10 w-10 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100 sm:inline-flex"
+            >
+              <Heart size={20} strokeWidth={1.75} />
             </Link>
-            <Link href="/account/wishlist" aria-label={t('wishlist')} className="hidden sm:inline-flex">
-              <Button variant="ghost" size="icon" asChild={false}>
-                <Heart size={20} />
-              </Button>
+            <Link
+              href="/cart"
+              aria-label={t('cart')}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100"
+            >
+              <ShoppingBag size={20} strokeWidth={1.75} />
             </Link>
-            <Link href="/login" className="hidden sm:inline-flex">
-              <Button variant="ghost" size="sm" asChild={false}>
-                <User size={18} />
-                <span className="ml-1">{t('login')}</span>
-              </Button>
+            <span className="mx-2 hidden h-6 w-px bg-slate-200 sm:block" aria-hidden />
+            <Link
+              href="/login"
+              className="hidden rounded-full px-4 text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 sm:inline-flex sm:h-10 sm:items-center"
+            >
+              {t('login')}
             </Link>
-            <Link href="/signup" className="hidden sm:inline-flex">
-              <Button variant="default" size="sm" asChild={false}>
-                <span>Sign up</span>
-              </Button>
+            <Link
+              href="/signup"
+              className="inline-flex h-10 items-center rounded-full bg-slate-900 px-5 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+            >
+              Sign up
             </Link>
           </nav>
         </div>
 
-        {/* Category strip */}
-        <nav className="hidden h-10 items-center gap-6 overflow-x-auto text-sm text-slate-600 md:flex">
-          <Link href="/category/electronics" className="hover:text-brand-700">
+        <nav className="hidden h-12 items-center gap-7 overflow-x-auto text-[13px] font-medium text-slate-600 md:flex">
+          <Link href="/category/electronics" className="transition-colors hover:text-slate-900">
             {t('categories.electronics')}
           </Link>
-          <Link href="/category/fashion" className="hover:text-brand-700">
+          <Link href="/category/fashion" className="transition-colors hover:text-slate-900">
             {t('categories.fashion')}
           </Link>
-          <Link href="/category/home" className="hover:text-brand-700">
+          <Link href="/category/home" className="transition-colors hover:text-slate-900">
             {t('categories.home')}
           </Link>
-          <Link href="/category/beauty" className="hover:text-brand-700">
+          <Link href="/category/beauty" className="transition-colors hover:text-slate-900">
             {t('categories.beauty')}
           </Link>
-          <Link href="/category/books" className="hover:text-brand-700">
+          <Link href="/category/books" className="transition-colors hover:text-slate-900">
             {t('categories.books')}
           </Link>
-          <Link href="/category/toys" className="hover:text-brand-700">
+          <Link href="/category/toys" className="transition-colors hover:text-slate-900">
             {t('categories.toys')}
           </Link>
-          <Link href="/category/grocery" className="hover:text-brand-700">
+          <Link href="/category/grocery" className="transition-colors hover:text-slate-900">
             {t('categories.grocery')}
           </Link>
-          <span className="ml-auto text-slate-400">{t('categories.more')} ▾</span>
+          <button className="ml-auto inline-flex items-center gap-1 text-slate-400 transition-colors hover:text-slate-900">
+            {t('categories.more')} <ChevronDown size={14} />
+          </button>
         </nav>
       </div>
     </header>
