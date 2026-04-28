@@ -1,0 +1,46 @@
+module.exports = {
+  apps: [
+    {
+      name: 'web',
+      cwd: './apps/web',
+      script: 'pnpm',
+      args: 'start',
+      interpreter: 'none',
+      env: { NODE_ENV: 'production', PORT: '3000' },
+      max_memory_restart: '768M',
+    },
+    {
+      name: 'console',
+      cwd: './apps/console',
+      script: 'pnpm',
+      args: 'start',
+      interpreter: 'none',
+      env: { NODE_ENV: 'production', PORT: '3001' },
+      max_memory_restart: '512M',
+    },
+    {
+      name: 'worker-payouts',
+      script: 'pnpm',
+      args: '--filter @onsective/web worker:payouts',
+      interpreter: 'none',
+      env: { NODE_ENV: 'production' },
+      max_memory_restart: '384M',
+    },
+    {
+      name: 'worker-images',
+      script: 'pnpm',
+      args: '--filter @onsective/web worker:images',
+      interpreter: 'none',
+      env: { NODE_ENV: 'production' },
+      max_memory_restart: '512M',
+    },
+    {
+      name: 'worker-search-index',
+      script: 'pnpm',
+      args: '--filter @onsective/web worker:search-index',
+      interpreter: 'none',
+      env: { NODE_ENV: 'production' },
+      max_memory_restart: '384M',
+    },
+  ],
+};
