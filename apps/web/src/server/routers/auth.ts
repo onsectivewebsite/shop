@@ -151,6 +151,64 @@ export const authRouter = router({
     return { ok: true };
   }),
 
+  requestPasswordReset: publicProcedure
+    .use(authRateLimit)
+    .input(z.object({ email: emailSchema }))
+    .mutation(async ({ input }) => {
+      const user = await prisma.user.findUnique({ where: { email: input.email } });
+      if (user) {
+        const { code } = await issueOtp({
+          destination: input.email,
+          channel: 'email',
+          purpose: 'password_reset',
+          userId: user.id,
+        });
+        try {
+          await sendOtpEmail(input.email, code);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[email] password reset send failed:', err);
+        }
+      }
+      return { sent: true };
+    }),
+
+  resetPassword: publicProcedure
+    .use(authRateLimit)
+    .input(
+      z.object({
+        email: emailSchema,
+        code: z.string().length(6),
+        password: passwordSchema,
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const result = await verifyOtp({
+        destination: input.email,
+        purpose: 'password_reset',
+        code: input.code,
+      });
+      if (!result.valid || !result.userId) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid or expired code.' });
+      }
+
+      await prisma.user.update({
+        where: { id: result.userId },
+        data: {
+          passwordHash: hashPassword(input.password),
+          lastLoginAt: new Date(),
+        },
+      });
+
+      // Sign them in immediately after reset.
+      await createSession(result.userId, {
+        ipAddress: ctx.ipAddress ?? undefined,
+        userAgent: ctx.userAgent ?? undefined,
+      });
+
+      return { userId: result.userId };
+    }),
+
   me: publicProcedure.query(({ ctx }) => {
     if (!ctx.user) return null;
     return {

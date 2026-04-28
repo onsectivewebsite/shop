@@ -1,9 +1,13 @@
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 import { Heart, ShoppingBag, Search, ChevronDown } from 'lucide-react';
+import { getSession } from '@/server/auth/session';
+import { UserMenu } from './user-menu';
 
-export function Header() {
-  const t = useTranslations('nav');
+export async function Header() {
+  const t = await getTranslations('nav');
+  const session = await getSession();
+  const user = session?.user ?? null;
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
@@ -45,18 +49,25 @@ export function Header() {
               <ShoppingBag size={20} strokeWidth={1.75} />
             </Link>
             <span className="mx-2 hidden h-6 w-px bg-slate-200 sm:block" aria-hidden />
-            <Link
-              href="/login"
-              className="hidden rounded-full px-4 text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 sm:inline-flex sm:h-10 sm:items-center"
-            >
-              {t('login')}
-            </Link>
-            <Link
-              href="/signup"
-              className="inline-flex h-10 items-center rounded-full bg-slate-900 px-5 text-sm font-medium text-white transition-colors hover:bg-slate-800"
-            >
-              Sign up
-            </Link>
+
+            {user ? (
+              <UserMenu name={user.fullName ?? user.email} email={user.email} />
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="hidden rounded-full px-4 text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 sm:inline-flex sm:h-10 sm:items-center"
+                >
+                  {t('login')}
+                </Link>
+                <Link
+                  href="/signup"
+                  className="inline-flex h-10 items-center rounded-full bg-slate-900 px-5 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
           </nav>
         </div>
 
