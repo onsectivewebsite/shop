@@ -67,7 +67,8 @@ export function OtpForm() {
         We sent a 6-digit code to <span className="font-medium">{email}</span>.
         <br />
         <span className="text-xs text-slate-500">
-          (Dev mode: check your server console.)
+          The code expires in 10 minutes. Check your spam folder if you don&rsquo;t
+          see it.
         </span>
       </p>
       <div className="space-y-1.5">

@@ -60,7 +60,12 @@ export const authRouter = router({
         purpose: 'verify',
         userId: user.id,
       });
-      await sendOtpEmail(user.email, code);
+      try {
+        await sendOtpEmail(user.email, code);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[email] sendOtpEmail failed (signup verify):', err);
+      }
 
       return { userId: user.id };
     }),
@@ -104,7 +109,13 @@ export const authRouter = router({
           purpose: 'login',
           userId: user.id,
         });
-        await sendOtpEmail(input.email, code);
+        try {
+          await sendOtpEmail(input.email, code);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[email] sendOtpEmail failed:', err);
+          // Swallow — user-facing UX shouldn't expose SMTP details.
+        }
       }
       return { sent: true };
     }),
