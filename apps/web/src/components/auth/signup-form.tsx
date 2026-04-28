@@ -17,7 +17,8 @@ export function SignupForm() {
   const [error, setError] = useState<string | null>(null);
 
   const signup = trpc.auth.signupWithEmail.useMutation({
-    onSuccess: () => router.push('/verify?from=signup'),
+    onSuccess: (data) =>
+      router.push(`/verify-email?email=${encodeURIComponent(data.email)}`),
     onError: (e) => setError(e.message),
   });
 
@@ -91,7 +92,7 @@ export function SignupForm() {
 
       <p className="text-center text-sm text-slate-600">
         Already have an account?{' '}
-        <Link href="/login" className="font-medium text-brand-600 hover:underline">
+        <Link href="/login" className="font-medium text-slate-900 underline-offset-4 hover:underline">
           Sign in
         </Link>
       </p>

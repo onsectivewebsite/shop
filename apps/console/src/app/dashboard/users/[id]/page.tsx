@@ -1,7 +1,14 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@onsective/db';
 import { Card, CardContent, Badge, Button } from '@onsective/ui';
-import { sendPasswordResetAction, suspendUserAction } from './actions';
+import {
+  sendPasswordResetAction,
+  suspendUserAction,
+  reactivateUserAction,
+  unlockUserAction,
+  updateUserRolesAction,
+} from './actions';
+import { DeleteUserButton } from './delete-user-button';
 import { getConsoleSession } from '@/server/auth';
 import { startImpersonationAction, endImpersonationAction } from './impersonate';
 
@@ -52,15 +59,53 @@ export default async function UserDetail({ params }: { params: { id: string } })
               Send password reset
             </Button>
           </form>
-          {user.status === 'ACTIVE' && (
+          {user.lockedUntil && user.lockedUntil > new Date() && (
+            <form action={unlockUserAction.bind(null, user.id)}>
+              <Button variant="outline" size="sm" type="submit">
+                Unlock now
+              </Button>
+            </form>
+          )}
+          {user.status === 'ACTIVE' ? (
             <form action={suspendUserAction.bind(null, user.id, 'console action')}>
               <Button variant="destructive" size="sm" type="submit">
                 Suspend account
               </Button>
             </form>
+          ) : (
+            <form action={reactivateUserAction.bind(null, user.id)}>
+              <Button variant="outline" size="sm" type="submit">
+                Reactivate
+              </Button>
+            </form>
           )}
+          <DeleteUserButton userId={user.id} />
         </div>
       </header>
+
+      <div className="mt-6 rounded-lg border border-slate-200 bg-white p-4">
+        <h3 className="text-sm font-semibold text-slate-900">Roles</h3>
+        <p className="mt-1 text-xs text-slate-500">
+          Comma-separated. Allowed: BUYER, SELLER, SUPPORT_AGENT, PLATFORM_MANAGER,
+          CATALOG_MODERATOR, FINANCE_OPS, ADMIN, OWNER.
+        </p>
+        <form
+          action={async (fd) => {
+            'use server';
+            await updateUserRolesAction(user.id, String(fd.get('roles') ?? ''));
+          }}
+          className="mt-3 flex gap-2"
+        >
+          <input
+            name="roles"
+            defaultValue={user.roles.join(', ')}
+            className="h-10 flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm font-mono"
+          />
+          <Button type="submit" size="sm">
+            Save roles
+          </Button>
+        </form>
+      </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
         <Stat label="Country" value={user.countryCode} />

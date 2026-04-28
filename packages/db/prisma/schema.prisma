@@ -51,6 +51,12 @@ model User {
   roles          UserRole[] @default([BUYER])
   status         UserStatus @default(ACTIVE)
   lastLoginAt    DateTime?
+  // Security
+  twoFactorEmail Boolean    @default(true)  // require email OTP step on every password login
+  failedLoginAttempts Int   @default(0)
+  lockedUntil    DateTime?  // soft lock after repeated failures
+  lastLoginIp    String?
+  lastLoginUserAgent String?
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   deletedAt      DateTime?

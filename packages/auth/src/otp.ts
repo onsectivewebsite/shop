@@ -5,7 +5,7 @@ const OTP_TTL_MINUTES = 10;
 const OTP_MAX_ATTEMPTS = 5;
 
 export type OtpChannel = 'email' | 'sms';
-export type OtpPurpose = 'login' | 'verify' | 'password_reset';
+export type OtpPurpose = 'login' | 'verify' | 'password_reset' | 'login_2fa';
 
 function hashCode(code: string): string {
   return createHash('sha256').update(code).digest('hex');

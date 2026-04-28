@@ -15,7 +15,17 @@ export function LoginForm() {
   const [passkeyBusy, setPasskeyBusy] = useState(false);
 
   const login = trpc.auth.login.useMutation({
-    onSuccess: () => router.push('/'),
+    onSuccess: (data) => {
+      if ('requires2FA' in data && data.requires2FA) {
+        router.push(`/verify-2fa?email=${encodeURIComponent(data.email)}`);
+        return;
+      }
+      if ('needsEmailVerification' in data && data.needsEmailVerification) {
+        router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
+        return;
+      }
+      router.push('/');
+    },
     onError: (e) => setError(e.message),
   });
 
@@ -67,7 +77,7 @@ export function LoginForm() {
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <Label htmlFor="password">Password</Label>
-          <Link href="/forgot" className="text-sm text-brand-600 hover:underline">
+          <Link href="/forgot" className="text-sm text-slate-700 underline-offset-4 hover:underline">
             Forgot?
           </Link>
         </div>
@@ -110,7 +120,7 @@ export function LoginForm() {
 
       <p className="text-center text-sm text-slate-600">
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="font-medium text-brand-600 hover:underline">
+        <Link href="/signup" className="font-medium text-slate-900 underline-offset-4 hover:underline">
           Sign up
         </Link>
       </p>
