@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, sellerProcedure } from '../trpc';
+import { router, protectedProcedure, sellerProcedure } from '../trpc';
 import { prisma } from '../db';
 import {
   ALLOWED_IMAGE_MIME,
@@ -37,7 +37,91 @@ const variantInput = z.object({
   heightMm: z.number().int().min(0),
 });
 
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 48);
+}
+
+async function uniqueSlug(base: string): Promise<string> {
+  const root = slugify(base) || 'seller';
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const candidate = attempt === 0 ? root : `${root}-${Math.random().toString(36).slice(2, 6)}`;
+    const exists = await prisma.seller.findUnique({ where: { slug: candidate } });
+    if (!exists) return candidate;
+  }
+  return `${root}-${Date.now().toString(36).slice(-6)}`;
+}
+
 export const sellerRouter = router({
+  // Public-to-logged-in-user surface for the buyer site /sell flow.
+  application: router({
+    status: protectedProcedure.query(async ({ ctx }) => {
+      const seller = await prisma.seller.findUnique({
+        where: { userId: ctx.user.id },
+        select: {
+          id: true,
+          status: true,
+          legalName: true,
+          displayName: true,
+          slug: true,
+          countryCode: true,
+          stripePayoutsEnabled: true,
+          createdAt: true,
+        },
+      });
+      return seller; // null when user hasn't applied yet
+    }),
+
+    apply: protectedProcedure
+      .input(
+        z.object({
+          legalName: z.string().min(2).max(120),
+          displayName: z.string().min(2).max(80),
+          countryCode: z.string().length(2).toUpperCase(),
+          description: z.string().max(2000).optional(),
+          taxId: z.string().max(64).optional(),
+          website: z.string().url().max(200).optional(),
+          // Honesty: store, but don't enforce — admin verifies in console.
+          categoryHints: z.array(z.string()).max(8).default([]),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const existing = await prisma.seller.findUnique({ where: { userId: ctx.user.id } });
+        if (existing) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: `You already applied — current status: ${existing.status}.`,
+          });
+        }
+        const slug = await uniqueSlug(input.displayName);
+        const seller = await prisma.seller.create({
+          data: {
+            userId: ctx.user.id,
+            legalName: input.legalName,
+            displayName: input.displayName,
+            slug,
+            countryCode: input.countryCode,
+            description: input.description ?? null,
+            taxId: input.taxId ?? null,
+            status: 'PENDING_KYC',
+          },
+        });
+        // Add SELLER role so they can see /seller dashboard once approved.
+        if (!ctx.user.roles.includes('SELLER')) {
+          await prisma.user.update({
+            where: { id: ctx.user.id },
+            data: { roles: { set: [...ctx.user.roles, 'SELLER'] } },
+          });
+        }
+        return { sellerId: seller.id, status: seller.status, slug: seller.slug };
+      }),
+  }),
+
   dashboard: router({
     summary: sellerProcedure.query(async ({ ctx }) => {
       const seller = await prisma.seller.findUnique({ where: { userId: ctx.user.id } });
