@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { prisma } from '@/server/db';
-import { SESSION_COOKIE_NAME, issueSession } from '@onsective/auth';
+import { SESSION_COOKIE_NAME, issueSession, hashToken } from '@onsective/auth';
 
 /**
  * Consumes a console-issued impersonation magic-link and creates a special
@@ -28,9 +28,11 @@ export default async function ImpersonateConsumePage({
   }
 
   const { token, expiresAt } = await issueSession(imp.targetUserId, {});
-  // Manually attach the impersonation reference to the brand-new session row.
-  await prisma.session.updateMany({
-    where: { userId: imp.targetUserId, impersonationSessionId: null, expiresAt },
+  // Attach the impersonation reference to the exact session row we just
+  // issued. Match by tokenHash (the canonical session id) instead of
+  // expiresAt, which can drift across DB precision boundaries.
+  await prisma.session.update({
+    where: { tokenHash: hashToken(token) },
     data: { impersonationSessionId: imp.id },
   });
   await prisma.impersonationSession.update({
