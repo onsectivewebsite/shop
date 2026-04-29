@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { prisma, type Prisma, type UserRole } from '@onsective/db';
+import { prisma, type UserRole } from '@onsective/db';
 import { getConsoleSession } from '@/server/auth';
 import { audit } from '@/lib/audit';
 import { issueOtp } from '@/server/otp';
@@ -113,7 +113,7 @@ export async function updateUserRolesAction(
     action: 'user.roles.update',
     targetType: 'user',
     targetId: userId,
-    metadata: { roles } as Prisma.InputJsonValue,
+    metadata: { roles },
   });
   revalidatePath(`/dashboard/users/${userId}`);
 }

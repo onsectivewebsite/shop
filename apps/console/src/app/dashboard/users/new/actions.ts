@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { hashPassword } from '@onsective/auth';
-import { prisma, type Prisma, type UserRole } from '@onsective/db';
+import { prisma, type UserRole } from '@onsective/db';
 import { getConsoleSession } from '@/server/auth';
 import { audit } from '@/lib/audit';
 
@@ -54,7 +54,7 @@ export async function createUserAction(formData: FormData): Promise<void> {
     action: 'user.create',
     targetType: 'user',
     targetId: created.id,
-    metadata: { email, roles, countryCode } as Prisma.InputJsonValue,
+    metadata: { email, roles, countryCode },
   });
 
   redirect(`/dashboard/users/${created.id}`);
