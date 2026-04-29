@@ -25,15 +25,7 @@ export default async function SellerDashboard() {
   });
 
   if (!seller) {
-    return (
-      <div className="container-page py-12 text-center">
-        <h1 className="text-2xl font-bold">You&apos;re not a seller yet</h1>
-        <p className="mt-2 text-slate-600">
-          Apply to start selling. We&apos;ll wire the seller-onboarding flow in Phase 1
-          (Sprint 0 ticket SEL-001).
-        </p>
-      </div>
-    );
+    redirect('/sell');
   }
 
   return (
