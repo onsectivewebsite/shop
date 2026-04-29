@@ -19,6 +19,15 @@ module.exports = {
       max_memory_restart: '512M',
     },
     {
+      name: 'seller',
+      cwd: './apps/seller',
+      script: 'pnpm',
+      args: 'start',
+      interpreter: 'none',
+      env: { NODE_ENV: 'production', PORT: '3002' },
+      max_memory_restart: '512M',
+    },
+    {
       name: 'worker-payouts',
       script: 'pnpm',
       args: '--filter @onsective/web worker:payouts',

@@ -39,12 +39,12 @@ export async function Header() {
           </div>
 
           <nav className="ml-auto flex items-center gap-1">
-            <Link
-              href="/sell"
+            <a
+              href="https://seller.itsnottechy.cloud"
               className="hidden h-10 items-center rounded-full px-4 text-sm font-medium text-stone-700 transition-colors hover:text-stone-950 sm:inline-flex"
             >
               Sell on Onsective
-            </Link>
+            </a>
             <Link
               href="/account/wishlist"
               aria-label="Wishlist"

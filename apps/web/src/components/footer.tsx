@@ -46,7 +46,7 @@ export function Footer() {
               <FooterLink href="/contact">{t('contact')}</FooterLink>
             </FooterColumn>
             <FooterColumn title="Sell">
-              <FooterLink href="/sell">{t('becomeSeller')}</FooterLink>
+              <FooterLink href="https://seller.itsnottechy.cloud">{t('becomeSeller')}</FooterLink>
               <FooterLink href="/sell/policies">{t('sellerPolicies')}</FooterLink>
               <FooterLink href="/sell/pricing">{t('pricing')}</FooterLink>
             </FooterColumn>

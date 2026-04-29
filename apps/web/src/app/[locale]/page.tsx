@@ -155,8 +155,8 @@ export default async function HomePage() {
 
           {/* Sell CTA — emerald */}
           <div className="col-span-6 md:col-span-4">
-            <Link
-              href="/sell"
+            <a
+              href="https://seller.itsnottechy.cloud"
               className="group relative flex h-full min-h-[210px] flex-col justify-between overflow-hidden rounded-[28px] bg-emerald-700 p-7 text-white transition-transform hover:-translate-y-0.5"
             >
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-100">
@@ -175,7 +175,7 @@ export default async function HomePage() {
                 strokeWidth={1.5}
                 className="absolute right-7 top-7 text-white transition-transform group-hover:-translate-y-1 group-hover:translate-x-1"
               />
-            </Link>
+            </a>
           </div>
         </div>
       </section>
@@ -314,8 +314,8 @@ export default async function HomePage() {
 
       {/* CLOSING SELLER STRIP */}
       <section className="container-page pb-20 md:pb-32">
-        <Link
-          href="/sell"
+        <a
+          href="https://seller.itsnottechy.cloud"
           className="group relative flex flex-col justify-between gap-6 overflow-hidden rounded-[32px] bg-emerald-700 p-10 text-white transition-transform hover:-translate-y-0.5 sm:p-14 md:flex-row md:items-end md:p-16"
         >
           <div>
@@ -333,7 +333,7 @@ export default async function HomePage() {
               <ArrowUpRight size={14} strokeWidth={2} />
             </span>
           </div>
-        </Link>
+        </a>
       </section>
 
       {productCount === 0 && (
