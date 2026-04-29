@@ -386,7 +386,11 @@ export const authRouter = router({
       }),
 
     requestRegistration: protectedProcedure.mutation(async ({ ctx }) => {
-      return startRegistration(ctx.user!);
+      return startRegistration({
+        userId: ctx.user!.id,
+        userEmail: ctx.user!.email,
+        userDisplayName: ctx.user!.fullName,
+      });
     }),
 
     verifyRegistration: protectedProcedure
@@ -397,14 +401,18 @@ export const authRouter = router({
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        return finishRegistration(ctx.user!, input.response, input.name);
+        return finishRegistration({
+          userId: ctx.user!.id,
+          response: input.response,
+          name: input.name,
+        });
       }),
 
     requestAuthentication: publicProcedure
       .use(authRateLimit)
       .input(z.object({ email: emailSchema.optional() }))
       .mutation(async ({ input }) => {
-        return startAuthentication(input.email);
+        return startAuthentication({ email: input.email });
       }),
 
     verifyAuthentication: publicProcedure
@@ -416,7 +424,10 @@ export const authRouter = router({
         }),
       )
       .mutation(async ({ input, ctx }) => {
-        const userId = await finishAuthentication(input.email, input.response);
+        const { userId } = await finishAuthentication({
+          email: input.email,
+          response: input.response,
+        });
         await createSession(userId, {
           ipAddress: ctx.ipAddress ?? undefined,
           userAgent: ctx.userAgent ?? undefined,
