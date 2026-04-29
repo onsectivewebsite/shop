@@ -12,7 +12,8 @@ export default function NewUserPage() {
       <h1 className="mt-2 text-2xl font-bold text-slate-900">Create user</h1>
       <p className="mt-1 text-sm text-slate-500">
         Onboard a teammate (Support, Platform Manager, Admin) or create a buyer
-        account on someone&rsquo;s behalf.
+        account on someone&rsquo;s behalf. The user receives a welcome email
+        with a one-time code to set their own password.
       </p>
 
       <form
@@ -48,22 +49,6 @@ export default function NewUserPage() {
             required
             className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
           />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700">Temporary password</label>
-          <input
-            name="password"
-            type="text"
-            minLength={10}
-            required
-            className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm font-mono"
-            placeholder="At least 10 characters"
-          />
-          <p className="mt-1 text-xs text-slate-500">
-            Share with the user securely; they will be prompted to change it on first sign-in
-            via password reset.
-          </p>
         </div>
 
         <div>
