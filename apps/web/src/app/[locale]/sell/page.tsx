@@ -149,8 +149,9 @@ export default async function SellPage({
                 Reach buyers across <em className="italic text-emerald-700">80+ countries</em>.
               </h1>
               <p className="mt-8 max-w-lg text-lg text-stone-600">
-                A small commission, weekly payouts, and a global checkout that handles tax,
-                fraud, and shipping. You stay focused on what you make.
+                Buyers pay <strong>Onsective</strong>, not you — we handle tax, fraud,
+                chargebacks, and currency conversion. We then transfer your earnings,
+                net of commission, to your bank weekly via Stripe.
               </p>
               <div className="mt-10 flex flex-wrap items-center gap-3">
                 <Link
@@ -188,10 +189,10 @@ export default async function SellPage({
           Everything except the part you actually own.
         </h2>
         <div className="mt-12 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-          <Perk icon={Globe} title="Global checkout" sub="Multi-currency, multi-language, Stripe-secured." />
+          <Perk icon={Globe} title="Onsective is the merchant of record" sub="Buyers pay us. You never touch a credit card." />
           <Perk icon={Truck} title="Logistics layer" sub="EasyPost rates, label printing, tracking webhooks." />
-          <Perk icon={ShieldCheck} title="Fraud + buyer protection" sub="We handle disputes and chargebacks." />
-          <Perk icon={Wallet} title="Weekly Stripe payouts" sub="Direct deposit, transparent fee breakdown." />
+          <Perk icon={ShieldCheck} title="Fraud + chargebacks on us" sub="We absorb the dispute risk on every order." />
+          <Perk icon={Wallet} title="Weekly bank payouts" sub="Net of commission, via Stripe Connect." />
         </div>
       </section>
 
