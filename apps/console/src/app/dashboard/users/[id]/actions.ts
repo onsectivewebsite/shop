@@ -7,6 +7,7 @@ import { getConsoleSession } from '@/server/auth';
 import { audit } from '@/lib/audit';
 import { issueOtp } from '@/server/otp';
 import { sendOtpEmail } from '@/server/notifications';
+import { filterGrantableRoles, canTargetUser } from '@/lib/role-policy';
 
 export async function sendPasswordResetAction(userId: string): Promise<void> {
   const session = await getConsoleSession();
@@ -102,11 +103,26 @@ export async function updateUserRolesAction(
     'ADMIN',
     'OWNER',
   ];
-  const roles = rolesCsv
+  const submitted = rolesCsv
     .split(',')
     .map((r) => r.trim().toUpperCase())
     .filter((r): r is UserRole => allowed.includes(r as UserRole));
-  if (roles.length === 0) throw new Error('At least one valid role required.');
+  if (submitted.length === 0) throw new Error('At least one valid role required.');
+
+  // Block an actor from acting on a user whose privilege exceeds theirs.
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { roles: true },
+  });
+  if (!target) throw new Error('User not found.');
+  if (!canTargetUser(session.user.roles, target.roles)) {
+    throw new Error('You cannot edit a user whose privilege exceeds yours.');
+  }
+  // Block an actor from granting roles above their own ceiling.
+  const roles = filterGrantableRoles(session.user.roles, submitted);
+  if (roles.length !== submitted.length) {
+    throw new Error('You cannot grant a role higher than your own.');
+  }
   await prisma.user.update({ where: { id: userId }, data: { roles } });
   await audit({
     actorId: session.user.id,
@@ -123,6 +139,14 @@ export async function deleteUserAction(userId: string): Promise<void> {
   if (!session) throw new Error('Not authorized');
   if (session.user.id === userId) {
     throw new Error('You cannot delete your own account.');
+  }
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { roles: true },
+  });
+  if (!target) throw new Error('User not found.');
+  if (!canTargetUser(session.user.roles, target.roles)) {
+    throw new Error('You cannot delete a user whose privilege exceeds yours.');
   }
   // Soft-delete: mark deletedAt + suspend + revoke sessions; preserve audit trail.
   await prisma.user.update({

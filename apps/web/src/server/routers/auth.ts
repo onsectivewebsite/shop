@@ -105,7 +105,7 @@ export const authRouter = router({
   login: publicProcedure
     .use(authRateLimit)
     .input(z.object({ email: emailSchema, password: passwordSchema }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const user = await prisma.user.findUnique({ where: { email: input.email } });
 
       // 1. Lockout window
@@ -172,12 +172,20 @@ export const authRouter = router({
         return { requires2FA: true, email: user.email };
       }
 
-      // 5. No 2FA: skip OTP and create session directly (rare path)
-      // (Default is 2FA on; this exists for future opt-out.)
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Two-factor is currently required for all accounts.',
+      // 5. No 2FA: opt-out path. Create session immediately.
+      await createSession(user.id, {
+        ipAddress: ctx.ipAddress ?? undefined,
+        userAgent: ctx.userAgent ?? undefined,
       });
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          lastLoginAt: new Date(),
+          lastLoginIp: ctx.ipAddress ?? null,
+          lastLoginUserAgent: ctx.userAgent ?? null,
+        },
+      });
+      return { ok: true };
     }),
 
   verifyTwoFactor: publicProcedure
@@ -333,6 +341,11 @@ export const authRouter = router({
       if (!result.valid || !result.userId) {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid or expired code.' });
       }
+      // Revoke every existing session — a stolen token must NOT survive a
+      // password reset. Then issue a fresh session for the user who just
+      // proved control of the email.
+      await prisma.session.deleteMany({ where: { userId: result.userId } });
+
       await prisma.user.update({
         where: { id: result.userId },
         data: {

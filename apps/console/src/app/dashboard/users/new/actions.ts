@@ -5,6 +5,7 @@ import { hashPassword } from '@onsective/auth';
 import { prisma, type UserRole } from '@onsective/db';
 import { getConsoleSession } from '@/server/auth';
 import { audit } from '@/lib/audit';
+import { filterGrantableRoles } from '@/lib/role-policy';
 
 const ALLOWED: UserRole[] = [
   'BUYER',
@@ -26,7 +27,12 @@ export async function createUserAction(formData: FormData): Promise<void> {
   const fullName = String(formData.get('fullName') ?? '').trim();
   const countryCode = String(formData.get('countryCode') ?? 'US').toUpperCase();
   const rolesRaw = formData.getAll('roles').map(String);
-  const roles = rolesRaw.filter((r): r is UserRole => ALLOWED.includes(r as UserRole));
+  const submitted = rolesRaw.filter((r): r is UserRole => ALLOWED.includes(r as UserRole));
+  // Privilege guard: an actor can only grant roles at or below their own ceiling.
+  const roles = filterGrantableRoles(session.user.roles, submitted);
+  if (roles.length !== submitted.length) {
+    throw new Error('You cannot grant a role higher than your own.');
+  }
 
   if (!email || !password || !fullName || roles.length === 0) {
     throw new Error('Missing required fields.');
