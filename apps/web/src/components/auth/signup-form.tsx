@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button, Input, Label } from '@onsective/ui';
 import { trpc } from '@/lib/trpc';
+import { PasswordInput } from './password-input';
 
 export function SignupForm() {
   const router = useRouter();
@@ -54,9 +55,8 @@ export function SignupForm() {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password">Password</Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           required
           minLength={10}
           value={form.password}

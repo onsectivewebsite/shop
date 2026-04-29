@@ -1,11 +1,20 @@
 import nodemailer, { type Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 
-let cached: Transporter | null = null;
+let smtpCached: Transporter | null = null;
+let resendCached: Resend | null = null;
 
-function getTransporter(): Transporter | null {
-  if (cached) return cached;
+function getResend(): Resend | null {
+  if (resendCached) return resendCached;
+  if (!process.env.RESEND_API_KEY) return null;
+  resendCached = new Resend(process.env.RESEND_API_KEY);
+  return resendCached;
+}
+
+function getSmtp(): Transporter | null {
+  if (smtpCached) return smtpCached;
   if (!process.env.SMTP_HOST) return null;
-  cached = nodemailer.createTransport({
+  smtpCached = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT ?? 465),
     secure: process.env.SMTP_SECURE !== 'false',
@@ -14,7 +23,7 @@ function getTransporter(): Transporter | null {
       pass: process.env.SMTP_PASS,
     },
   });
-  return cached;
+  return smtpCached;
 }
 
 const FROM = () => process.env.EMAIL_FROM ?? 'no-reply@onsective.com';
@@ -40,20 +49,38 @@ async function send(opts: {
   text: string;
   html: string;
 }) {
-  const t = getTransporter();
-  if (!t) {
-    // eslint-disable-next-line no-console
-    console.log(`[email→${opts.to}] ${opts.subject}: ${opts.text}`);
+  // 1. Resend if configured (HTTP API, no port issues, best deliverability)
+  const resend = getResend();
+  if (resend) {
+    const { error } = await resend.emails.send({
+      from: FROM(),
+      to: opts.to,
+      subject: opts.subject,
+      text: opts.text,
+      html: opts.html,
+      replyTo: REPLY_TO(),
+    });
+    if (error) throw new Error(`Resend: ${error.message ?? 'unknown error'}`);
     return;
   }
-  await t.sendMail({
-    from: FROM(),
-    replyTo: REPLY_TO(),
-    to: opts.to,
-    subject: opts.subject,
-    text: opts.text,
-    html: opts.html,
-  });
+
+  // 2. SMTP fallback
+  const smtp = getSmtp();
+  if (smtp) {
+    await smtp.sendMail({
+      from: FROM(),
+      replyTo: REPLY_TO(),
+      to: opts.to,
+      subject: opts.subject,
+      text: opts.text,
+      html: opts.html,
+    });
+    return;
+  }
+
+  // 3. Dev fallback
+  // eslint-disable-next-line no-console
+  console.log(`[email→${opts.to}] ${opts.subject}: ${opts.text}`);
 }
 
 export async function sendOtpEmail(to: string, code: string): Promise<void> {

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { Button, Input, Label } from '@onsective/ui';
 import { trpc } from '@/lib/trpc';
+import { PasswordInput } from './password-input';
 
 export function LoginForm() {
   const router = useRouter();
@@ -81,9 +82,8 @@ export function LoginForm() {
             Forgot?
           </Link>
         </div>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="current-password"
           required
           minLength={10}

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Input, Label } from '@onsective/ui';
 import { trpc } from '@/lib/trpc';
+import { PasswordInput } from './password-input';
 
 export function ResetForm() {
   const router = useRouter();
@@ -60,9 +61,8 @@ export function ResetForm() {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password">New password</Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="new-password"
           required
           minLength={10}
@@ -72,9 +72,8 @@ export function ResetForm() {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="confirm">Confirm new password</Label>
-        <Input
+        <PasswordInput
           id="confirm"
-          type="password"
           autoComplete="new-password"
           required
           minLength={10}
