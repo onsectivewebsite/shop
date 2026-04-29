@@ -180,6 +180,9 @@ export async function finishAuthentication(args: {
       OR: [
         { userId: passkey.userId },
         ...(args.email ? [{ email: args.email }] : []),
+        // Discoverable-credential flow: client called requestAuthentication
+        // with no email, so the challenge row has neither userId nor email.
+        { userId: null, email: null },
       ],
     },
     orderBy: { createdAt: 'desc' },
