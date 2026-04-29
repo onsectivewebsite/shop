@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
-import { ArrowRight, Star, Zap, Truck, RotateCcw, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight, Sparkles, Clock, Heart } from 'lucide-react';
 import { prisma } from '@/server/db';
 
 async function getHomeData() {
@@ -15,316 +15,313 @@ async function getHomeData() {
   return { categories, productCount };
 }
 
-const HERO_TILES = [
-  {
-    title: 'Electronics',
-    href: '/category/electronics',
-    items: ['Smartphones', 'Laptops', 'Audio', 'Wearables'],
-    accent: 'from-sky-100 to-sky-50',
-  },
-  {
-    title: 'Fashion',
-    href: '/category/fashion',
-    items: ['Men', 'Women', 'Shoes', 'Accessories'],
-    accent: 'from-rose-100 to-rose-50',
-  },
-  {
-    title: 'Home & Kitchen',
-    href: '/category/home',
-    items: ['Cookware', 'Bedding', 'Decor', 'Storage'],
-    accent: 'from-amber-100 to-amber-50',
-  },
-  {
-    title: 'Beauty',
-    href: '/category/beauty',
-    items: ['Skincare', 'Makeup', 'Fragrance', 'Hair'],
-    accent: 'from-pink-100 to-pink-50',
-  },
-];
-
-const PLACEHOLDER_PRODUCTS = [
-  { name: 'Wireless noise-cancelling headphones', price: 17999, was: 24999, rating: 4.6, reviews: 1284, badge: 'Best Seller' },
-  { name: 'Smart fitness tracker', price: 4999, was: 7499, rating: 4.4, reviews: 832, badge: 'Limited deal' },
-  { name: 'Organic cotton bedsheet set', price: 3499, was: 5999, rating: 4.8, reviews: 2104, badge: '#1 in Bedding' },
-  { name: 'Ceramic non-stick cookware (5 pc)', price: 8499, was: 12999, rating: 4.5, reviews: 612, badge: 'Top rated' },
-  { name: 'Smart LED desk lamp', price: 2499, was: 3499, rating: 4.3, reviews: 412 },
-  { name: 'Stainless-steel insulated bottle', price: 999, was: 1499, rating: 4.7, reviews: 5402 },
-];
-
-const TODAYS_DEALS = [
-  { name: 'Up to 60% off — Headphones', tagline: 'Premium audio brands', accent: 'bg-sky-500' },
-  { name: 'Up to 50% off — Skincare', tagline: 'Editor picks', accent: 'bg-rose-500' },
-  { name: 'Buy 2 Save 30% — Books', tagline: 'New & bestselling', accent: 'bg-emerald-500' },
-  { name: 'Up to 40% off — Cookware', tagline: 'Top-rated brands', accent: 'bg-amber-500' },
-];
-
-function formatINR(minor: number) {
-  return `$${(minor / 100).toFixed(2)}`;
-}
-
 export default async function HomePage() {
   const t = await getTranslations('home');
   const { productCount } = await getHomeData();
-  const showLive = productCount > 0;
 
   return (
-    <div className="bg-slate-100 pb-20">
-      {/* HERO BANNER */}
-      <section className="relative overflow-hidden bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 py-10 text-white">
-        <div className="container-page">
-          <div className="grid gap-8 md:grid-cols-3">
-            <div className="md:col-span-2">
-              <p className="inline-flex items-center gap-2 rounded-full bg-amber-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-300">
-                <Zap size={14} /> Today only — Spring Sale
-              </p>
-              <h1 className="mt-4 text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl">
-                Up to 60% off across thousands of items.
-              </h1>
-              <p className="mt-3 max-w-xl text-base text-slate-300">
-                Free shipping on orders over $50. Easy 30-day returns. Trusted by
-                buyers in 80+ countries.
-              </p>
-              <div className="mt-6 flex flex-wrap items-center gap-3">
+    <div className="bg-stone-50">
+      {/* BENTO HERO — asymmetric grid */}
+      <section className="container-page pt-6 pb-10">
+        <div className="grid grid-cols-12 gap-3 md:gap-4">
+          {/* Big editorial — emerald */}
+          <div className="col-span-12 md:col-span-7 md:row-span-2">
+            <div className="relative flex h-full min-h-[420px] flex-col justify-between overflow-hidden rounded-3xl bg-emerald-700 p-8 text-white sm:p-10 md:p-12">
+              <div
+                className="pointer-events-none absolute inset-0 opacity-30"
+                style={{
+                  backgroundImage:
+                    'radial-gradient(circle at 80% 20%, rgba(252, 211, 77, 0.6), transparent 50%), radial-gradient(circle at 10% 90%, rgba(167, 243, 208, 0.5), transparent 50%)',
+                }}
+                aria-hidden
+              />
+              <div className="relative">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-emerald-50 backdrop-blur">
+                  <Sparkles size={12} /> Spring Edition · 24
+                </span>
+                <h1 className="mt-8 font-display text-5xl font-medium leading-[1.02] tracking-tight sm:text-6xl md:text-7xl">
+                  Slow shopping for{' '}
+                  <span className="italic font-normal text-emerald-100">
+                    fast lives.
+                  </span>
+                </h1>
+                <p className="mt-6 max-w-md text-sm leading-relaxed text-emerald-50/90 md:text-base">
+                  A small, deliberate marketplace of objects, garments, and
+                  rituals — sourced from independent makers across 80+ countries.
+                </p>
+              </div>
+              <div className="relative mt-10 flex flex-wrap items-center gap-3">
                 <Link
-                  href="/deals"
-                  className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-6 py-3 text-sm font-bold text-slate-900 transition-colors hover:bg-amber-300"
+                  href="/category/electronics"
+                  className="group inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-medium text-emerald-900 transition-all hover:bg-emerald-50"
                 >
-                  Shop the deals <ArrowRight size={14} />
+                  Enter the catalogue
+                  <ArrowUpRight
+                    size={14}
+                    className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                  />
                 </Link>
                 <Link
                   href="/sell"
-                  className="text-sm font-semibold text-white underline-offset-4 hover:underline"
+                  className="text-sm font-medium text-white/80 underline-offset-4 transition-colors hover:text-white hover:underline"
                 >
-                  Sell on Onsective →
+                  Become a maker
                 </Link>
               </div>
             </div>
-            <div className="hidden grid-cols-2 gap-3 md:grid">
-              {TODAYS_DEALS.slice(0, 4).map((d) => (
-                <div
-                  key={d.name}
-                  className="flex flex-col justify-between rounded-lg bg-white p-4 text-slate-900"
-                >
-                  <p className={`inline-flex w-fit rounded-full px-2 py-0.5 text-[11px] font-bold uppercase text-white ${d.accent}`}>
-                    Deal
-                  </p>
-                  <p className="mt-2 text-sm font-bold">{d.name}</p>
-                  <p className="text-xs text-slate-500">{d.tagline}</p>
-                </div>
-              ))}
-            </div>
+          </div>
+
+          {/* Live drop — terracotta */}
+          <div className="col-span-6 md:col-span-5">
+            <Link
+              href="/drops/spring-24"
+              className="group relative flex h-full min-h-[200px] flex-col justify-between overflow-hidden rounded-3xl bg-orange-200 p-6 transition-transform hover:-translate-y-0.5"
+            >
+              <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-orange-900">
+                <span className="flex h-2 w-2 animate-pulse rounded-full bg-orange-700" />
+                Live drop · ends in 04 : 12 : 39
+              </div>
+              <div>
+                <p className="font-display text-3xl font-medium leading-tight tracking-tight text-orange-950 md:text-4xl">
+                  The 12-piece <em className="italic">linen capsule</em>
+                </p>
+                <p className="mt-2 text-sm text-orange-900/80">
+                  By Studio Atelier · Lisbon
+                </p>
+              </div>
+              <ArrowUpRight
+                size={20}
+                strokeWidth={1.5}
+                className="absolute right-6 top-6 text-orange-900 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1"
+              />
+            </Link>
+          </div>
+
+          {/* Maker of the week — cream */}
+          <div className="col-span-6 md:col-span-5">
+            <Link
+              href="/maker/aimee-yano"
+              className="group relative flex h-full min-h-[200px] flex-col justify-between overflow-hidden rounded-3xl bg-stone-200 p-6 transition-transform hover:-translate-y-0.5"
+            >
+              <span className="text-[11px] font-medium uppercase tracking-[0.2em] text-stone-600">
+                Maker of the week
+              </span>
+              <div>
+                <p className="font-display text-3xl font-medium leading-tight tracking-tight text-stone-900 md:text-4xl">
+                  Aimée <em className="italic">Yano</em>
+                </p>
+                <p className="mt-2 text-sm text-stone-600">
+                  Hand-thrown ceramics · Kyoto
+                </p>
+              </div>
+              <ArrowUpRight
+                size={20}
+                strokeWidth={1.5}
+                className="absolute right-6 top-6 text-stone-700 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1"
+              />
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* TOP TILES — categories */}
-      <section className="container-page -mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {HERO_TILES.map((tile) => (
-          <article
-            key={tile.title}
-            className={`overflow-hidden rounded-lg bg-gradient-to-br ${tile.accent} p-5 shadow-sm`}
-          >
-            <h3 className="text-lg font-bold text-slate-900">{tile.title}</h3>
-            <ul className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-700">
-              {tile.items.map((item) => (
-                <li key={item}>
-                  <Link href={tile.href} className="hover:underline">
-                    {item}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            <Link
-              href={tile.href}
-              className="mt-4 inline-block text-xs font-semibold text-slate-900 underline-offset-4 hover:underline"
-            >
-              Shop {tile.title.toLowerCase()} →
-            </Link>
-          </article>
-        ))}
+      {/* MOOD STRIP — dark canvas */}
+      <section className="container-page py-12 md:py-20">
+        <div className="rounded-[40px] bg-stone-950 p-8 text-stone-50 sm:p-12 md:p-16">
+          <p className="text-[11px] font-medium uppercase tracking-[0.32em] text-stone-400">
+            Six aesthetics, six rooms
+          </p>
+          <h2 className="mt-6 font-display text-4xl font-medium leading-[1.05] tracking-tight md:text-6xl">
+            Shop by what you <em className="italic font-normal text-amber-300">feel</em>,
+            not what you need.
+          </h2>
+          <div className="mt-12 grid grid-cols-2 gap-3 md:grid-cols-3">
+            {[
+              { name: 'Quiet luxury', count: '482 pieces', tone: 'bg-stone-100 text-stone-900' },
+              { name: 'Wabi-sabi', count: '316 pieces', tone: 'bg-amber-100 text-amber-950' },
+              { name: 'Y2K revival', count: '624 pieces', tone: 'bg-fuchsia-200 text-fuchsia-950' },
+              { name: 'Cyber utility', count: '241 pieces', tone: 'bg-slate-200 text-slate-950' },
+              { name: 'Soft minimal', count: '802 pieces', tone: 'bg-rose-100 text-rose-950' },
+              { name: 'Maximalist', count: '197 pieces', tone: 'bg-emerald-100 text-emerald-950' },
+            ].map((m) => (
+              <Link
+                key={m.name}
+                href={`/mood/${m.name.toLowerCase().replace(/\s+/g, '-')}`}
+                className={`group relative flex h-32 flex-col justify-between overflow-hidden rounded-2xl ${m.tone} p-5 transition-transform hover:-translate-y-1`}
+              >
+                <p className="font-display text-2xl font-medium tracking-tight">
+                  {m.name}
+                </p>
+                <p className="text-xs">{m.count}</p>
+                <ArrowUpRight
+                  size={16}
+                  strokeWidth={1.5}
+                  className="absolute right-5 top-5 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1"
+                />
+              </Link>
+            ))}
+          </div>
+        </div>
       </section>
 
-      {/* TODAY'S DEALS STRIP */}
-      <Section title="Today's Deals" cta="See all deals" href="/deals">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
-          {PLACEHOLDER_PRODUCTS.slice(0, 6).map((p) => (
-            <ProductCard key={p.name} {...p} />
-          ))}
-        </div>
-      </Section>
-
-      {/* BEST SELLERS */}
-      <Section title="Best Sellers" cta="See top 100" href="/best-sellers">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
-          {PLACEHOLDER_PRODUCTS.slice().reverse().map((p) => (
-            <ProductCard key={p.name} {...p} />
-          ))}
-        </div>
-      </Section>
-
-      {/* TRUST STRIP */}
-      <Section title="Why Onsective" cta="Learn more" href="/about">
-        <div className="grid gap-3 rounded-lg bg-white p-6 sm:grid-cols-3">
-          <Trust icon={Truck} title="Free shipping" sub="On orders over $50" />
-          <Trust icon={RotateCcw} title="Easy returns" sub="30-day window" />
-          <Trust icon={ShieldCheck} title="Buyer protection" sub="100% guarantee" />
-        </div>
-      </Section>
-
-      {/* SELLER STRIP */}
-      <Section title="For sellers" cta="Apply to sell" href="/sell">
-        <div className="grid gap-4 rounded-lg bg-gradient-to-br from-slate-950 to-slate-800 p-8 text-white md:grid-cols-2">
+      {/* THE WALL — varied product card sizes */}
+      <section className="container-page py-12 md:py-20">
+        <div className="mb-10 flex items-end justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-amber-300">
-              Onsective for makers
+            <p className="text-[11px] font-medium uppercase tracking-[0.32em] text-stone-500">
+              The wall · refreshed daily
             </p>
-            <h3 className="mt-2 text-2xl font-bold leading-tight sm:text-3xl">
-              Reach buyers across 80+ countries.
-            </h3>
-            <p className="mt-3 max-w-md text-sm text-slate-300">
-              List in minutes. We handle payments, fraud detection, and global
-              logistics so you can focus on what you make.
-            </p>
-            <Link
-              href="/sell"
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-amber-400 px-5 py-2.5 text-sm font-bold text-slate-900 hover:bg-amber-300"
-            >
-              Start selling <ArrowRight size={14} />
-            </Link>
+            <h2 className="mt-4 font-display text-4xl font-medium leading-[1.05] tracking-tight text-stone-950 md:text-5xl">
+              Curated this <em className="italic">week</em>
+            </h2>
           </div>
-          <dl className="grid grid-cols-3 gap-4 self-end">
-            <div>
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Commission</dt>
-              <dd className="mt-1 text-2xl font-bold">8–15%</dd>
-            </div>
-            <div>
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Payouts</dt>
-              <dd className="mt-1 text-2xl font-bold">Weekly</dd>
-            </div>
-            <div>
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Markets</dt>
-              <dd className="mt-1 text-2xl font-bold">80+</dd>
-            </div>
-          </dl>
+          <Link
+            href="/wall"
+            className="hidden items-center gap-2 text-sm font-medium text-stone-700 underline-offset-4 transition-colors hover:text-stone-900 hover:underline sm:inline-flex"
+          >
+            See the full wall
+            <ArrowUpRight size={14} strokeWidth={1.5} />
+          </Link>
         </div>
-      </Section>
 
-      {!showLive && (
-        <div className="container-page mt-8">
-          <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <strong>Heads up:</strong> the products and prices on this page are
-            placeholders — real listings appear automatically as sellers onboard.
+        {productCount === 0 ? (
+          <WallSkeleton />
+        ) : (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <article key={i} className="group">
+                <div className="aspect-[4/5] overflow-hidden rounded-2xl bg-stone-200" />
+                <p className="mt-3 text-sm text-stone-900">Product {i + 1}</p>
+                <p className="text-xs text-stone-500">$00</p>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* MAKERS STRIP — horizontal cards */}
+      <section className="container-page py-12 md:py-20">
+        <div className="grid gap-4 md:grid-cols-3">
+          <MakerCard
+            tone="bg-rose-100"
+            country="Portugal"
+            name="Lina Costa"
+            craft="Linen weaver"
+            quote="Every meter holds a thousand decisions."
+          />
+          <MakerCard
+            tone="bg-amber-50"
+            country="Vietnam"
+            name="Hà Phạm"
+            craft="Lacquer artist"
+            quote="The wood teaches you patience first."
+          />
+          <MakerCard
+            tone="bg-stone-100"
+            country="Mexico"
+            name="Diego Moya"
+            craft="Volcanic stone"
+            quote="What is heavy is meant to last."
+          />
+        </div>
+      </section>
+
+      {/* CLOSING — letter from founder */}
+      <section className="container-page pb-24 md:pb-40">
+        <div className="mx-auto max-w-3xl rounded-[32px] border border-stone-200 bg-white p-10 sm:p-14 md:p-20">
+          <p className="text-[11px] font-medium uppercase tracking-[0.32em] text-stone-500">
+            A note from the founder
+          </p>
+          <p className="mt-10 font-display text-2xl font-normal leading-[1.4] tracking-[-0.005em] text-stone-900 sm:text-3xl">
+            We started Onsective because the world doesn&rsquo;t need another
+            marketplace — it needs a <em className="italic">smaller</em> one. One
+            where the maker shows up. Where the photograph is real. Where the
+            object is made to be kept.
+          </p>
+          <div className="mt-12 flex items-center gap-4">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-700 text-white">
+              <Heart size={18} fill="white" strokeWidth={0} />
+            </span>
+            <div>
+              <p className="text-sm font-medium text-stone-900">The Onsective team</p>
+              <p className="text-xs text-stone-500">Lisbon · Tokyo · Mumbai</p>
+            </div>
           </div>
         </div>
-      )}
+      </section>
     </div>
   );
 }
 
-function Section({
-  title,
-  cta,
-  href,
-  children,
-}: {
-  title: string;
-  cta: string;
-  href: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="container-page mt-6">
-      <div className="rounded-lg bg-white p-5">
-        <div className="mb-4 flex items-end justify-between">
-          <h2 className="text-xl font-bold text-slate-900">{title}</h2>
-          <Link
-            href={href}
-            className="text-sm font-semibold text-sky-700 hover:text-sky-900 hover:underline"
-          >
-            {cta} →
-          </Link>
-        </div>
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function ProductCard({
+function MakerCard({
+  tone,
+  country,
   name,
-  price,
-  was,
-  rating,
-  reviews,
-  badge,
+  craft,
+  quote,
 }: {
+  tone: string;
+  country: string;
   name: string;
-  price: number;
-  was: number;
-  rating: number;
-  reviews: number;
-  badge?: string;
+  craft: string;
+  quote: string;
 }) {
-  const discount = Math.round(((was - price) / was) * 100);
   return (
-    <article className="group overflow-hidden rounded-lg border border-transparent bg-white transition-all hover:border-slate-200 hover:shadow-md">
-      <div className="relative aspect-square overflow-hidden bg-slate-100">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-100" />
-        {badge && (
-          <span className="absolute left-2 top-2 rounded bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-900">
-            {badge}
-          </span>
-        )}
-        <span className="absolute right-2 top-2 rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white">
-          -{discount}%
-        </span>
+    <Link
+      href={`/maker/${name.toLowerCase().replace(/\s+/g, '-')}`}
+      className={`group flex flex-col justify-between overflow-hidden rounded-3xl ${tone} p-7 transition-transform hover:-translate-y-1`}
+    >
+      <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-stone-700">
+        <Clock size={10} /> {country}
       </div>
-      <div className="space-y-1.5 p-3">
-        <p className="line-clamp-2 text-sm font-medium text-slate-900 group-hover:text-sky-700">
-          {name}
-        </p>
-        <div className="flex items-center gap-1.5 text-xs">
-          <span className="flex items-center text-amber-500">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star
-                key={i}
-                size={12}
-                strokeWidth={0}
-                fill={i < Math.round(rating) ? 'currentColor' : 'none'}
-                stroke="currentColor"
-                className={i < Math.round(rating) ? '' : 'text-slate-300'}
-              />
-            ))}
-          </span>
-          <span className="text-slate-500">({reviews.toLocaleString()})</span>
+      <p className="mt-10 font-display text-xl italic leading-snug text-stone-900">
+        &ldquo;{quote}&rdquo;
+      </p>
+      <div className="mt-12 flex items-end justify-between">
+        <div>
+          <p className="font-display text-2xl font-medium text-stone-900">{name}</p>
+          <p className="text-xs text-stone-700">{craft}</p>
         </div>
-        <div className="flex items-baseline gap-2">
-          <span className="text-base font-bold text-slate-900">{formatINR(price)}</span>
-          <span className="text-xs text-slate-400 line-through">{formatINR(was)}</span>
-        </div>
+        <ArrowUpRight
+          size={18}
+          strokeWidth={1.5}
+          className="text-stone-700 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1"
+        />
       </div>
-    </article>
+    </Link>
   );
 }
 
-function Trust({
-  icon: Icon,
-  title,
-  sub,
-}: {
-  icon: typeof Truck;
-  title: string;
-  sub: string;
-}) {
+function WallSkeleton() {
   return (
-    <div className="flex items-center gap-3">
-      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-50 text-sky-700">
-        <Icon size={20} />
-      </span>
-      <div>
-        <p className="text-sm font-bold text-slate-900">{title}</p>
-        <p className="text-xs text-slate-500">{sub}</p>
-      </div>
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+      {Array.from({ length: 8 }).map((_, i) => {
+        const tones = [
+          'bg-stone-200',
+          'bg-amber-100',
+          'bg-rose-100',
+          'bg-emerald-100',
+          'bg-fuchsia-100',
+          'bg-sky-100',
+          'bg-stone-300',
+          'bg-orange-100',
+        ];
+        return (
+          <article key={i} className="group">
+            <div
+              className={`flex aspect-[4/5] flex-col items-center justify-center overflow-hidden rounded-2xl ${tones[i % tones.length]}`}
+            >
+              <p className="font-display text-xs uppercase tracking-[0.32em] text-stone-700/60">
+                Coming
+              </p>
+              <p className="font-display text-3xl italic font-normal text-stone-700/70">
+                soon
+              </p>
+            </div>
+            <p className="mt-3 text-sm text-stone-900">—</p>
+            <p className="text-xs text-stone-500">in stock soon</p>
+          </article>
+        );
+      })}
     </div>
   );
 }

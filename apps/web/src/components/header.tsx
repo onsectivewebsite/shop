@@ -1,8 +1,17 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
-import { MapPin, Search, ShoppingCart, ChevronDown } from 'lucide-react';
+import { Search, ShoppingBag, Globe } from 'lucide-react';
 import { getSession } from '@/server/auth/session';
 import { UserMenu } from './user-menu';
+
+const MOODS = [
+  { label: 'Quiet luxury', href: '/mood/quiet-luxury' },
+  { label: 'Wabi-sabi', href: '/mood/wabi-sabi' },
+  { label: 'Y2K revival', href: '/mood/y2k' },
+  { label: 'Cyber utility', href: '/mood/cyber-utility' },
+  { label: 'Soft minimal', href: '/mood/soft-minimal' },
+  { label: 'Maximalist', href: '/mood/maximalist' },
+];
 
 export async function Header() {
   const t = await getTranslations('nav');
@@ -10,119 +19,92 @@ export async function Header() {
   const user = session?.user ?? null;
 
   return (
-    <header className="sticky top-0 z-30">
-      {/* TOP BAR — dark, dense */}
-      <div className="bg-slate-950 text-white">
-        <div className="container-page">
-          <div className="flex h-14 items-center gap-4">
-            <Link
-              href="/"
-              className="rounded px-2 py-1 text-2xl font-bold tracking-tight ring-white/40 hover:ring-1"
-            >
-              Onsective<span className="text-amber-400">.</span>
-            </Link>
+    <header className="sticky top-0 z-30 border-b border-stone-200/50 bg-stone-50/70 backdrop-blur-xl">
+      <div className="container-page">
+        <div className="flex h-16 items-center gap-4">
+          {/* Wordmark */}
+          <Link
+            href="/"
+            className="font-display text-2xl font-medium tracking-tight text-stone-900"
+          >
+            on<span className="italic text-emerald-700">sective</span>
+          </Link>
 
-            <Link
-              href="/account/addresses"
-              className="hidden flex-col rounded px-2 py-1 ring-white/40 hover:ring-1 sm:flex"
-            >
-              <span className="text-[11px] text-slate-300">Deliver to</span>
-              <span className="-mt-0.5 inline-flex items-center gap-1 text-sm font-bold">
-                <MapPin size={14} />
-                {user?.countryCode ?? 'Worldwide'}
-              </span>
-            </Link>
+          {/* Pill search */}
+          <div className="relative ml-2 hidden flex-1 md:block">
+            <Search
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-stone-400"
+              size={16}
+              strokeWidth={1.75}
+              aria-hidden
+            />
+            <input
+              type="search"
+              placeholder="Search · objects, makers, moods…"
+              className="h-11 w-full rounded-full border border-stone-200 bg-white/90 pl-11 pr-4 text-sm text-stone-900 placeholder:text-stone-400 transition-all focus:border-stone-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-stone-900/5"
+            />
+          </div>
 
-            {/* SEARCH WITH DEPARTMENT DROPDOWN */}
-            <form className="flex h-10 flex-1 overflow-hidden rounded-md focus-within:ring-2 focus-within:ring-amber-400">
-              <select
-                className="h-full bg-slate-100 px-2 text-xs text-slate-700 focus:outline-none"
-                aria-label="Department"
-                defaultValue=""
-              >
-                <option value="">All</option>
-                <option value="electronics">Electronics</option>
-                <option value="fashion">Fashion</option>
-                <option value="home">Home & Kitchen</option>
-                <option value="beauty">Beauty</option>
-                <option value="books">Books</option>
-                <option value="toys">Toys</option>
-                <option value="grocery">Grocery</option>
-                <option value="sports">Sports</option>
-              </select>
-              <input
-                type="search"
-                placeholder={t('search')}
-                className="h-full flex-1 bg-white px-3 text-sm text-slate-900 focus:outline-none"
-              />
-              <button
-                type="submit"
-                aria-label="Search"
-                className="flex h-full w-12 items-center justify-center bg-amber-400 text-slate-900 hover:bg-amber-500"
-              >
-                <Search size={18} strokeWidth={2.25} />
-              </button>
-            </form>
-
+          {/* Right cluster */}
+          <nav className="ml-auto flex items-center gap-1">
             <Link
-              href="/account/orders"
-              className="hidden rounded px-2 py-1 ring-white/40 hover:ring-1 md:block"
+              href="/sell"
+              className="hidden h-10 items-center rounded-full px-4 text-sm font-medium text-stone-700 transition-colors hover:text-stone-900 sm:inline-flex"
             >
-              <span className="block text-[11px] text-slate-300">Returns</span>
-              <span className="-mt-0.5 block text-sm font-bold">& Orders</span>
+              Sell
             </Link>
+            <button
+              aria-label="Region"
+              className="hidden h-10 w-10 items-center justify-center rounded-full text-stone-700 transition-colors hover:bg-stone-100 sm:inline-flex"
+            >
+              <Globe size={18} strokeWidth={1.5} />
+            </button>
+            <Link
+              href="/cart"
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-stone-700 transition-colors hover:bg-stone-100"
+              aria-label={t('cart')}
+            >
+              <ShoppingBag size={18} strokeWidth={1.5} />
+              <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-emerald-700" />
+            </Link>
+            <span className="mx-1 hidden h-6 w-px bg-stone-200 sm:block" aria-hidden />
 
             {user ? (
               <UserMenu name={user.fullName ?? user.email} email={user.email} />
             ) : (
-              <Link
-                href="/login"
-                className="hidden rounded px-2 py-1 ring-white/40 hover:ring-1 sm:block"
-              >
-                <span className="block text-[11px] text-slate-300">Hello, sign in</span>
-                <span className="-mt-0.5 inline-flex items-center gap-1 text-sm font-bold">
-                  Account <ChevronDown size={12} />
-                </span>
-              </Link>
+              <>
+                <Link
+                  href="/login"
+                  className="hidden h-10 items-center rounded-full px-4 text-sm font-medium text-stone-700 transition-colors hover:text-stone-900 sm:inline-flex"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href="/signup"
+                  className="inline-flex h-10 items-center rounded-full bg-stone-900 px-5 text-sm font-medium text-white transition-colors hover:bg-stone-800"
+                >
+                  Join
+                </Link>
+              </>
             )}
-
-            <Link
-              href="/cart"
-              className="flex items-center gap-1 rounded px-2 py-1 ring-white/40 hover:ring-1"
-              aria-label={t('cart')}
-            >
-              <span className="relative">
-                <ShoppingCart size={26} strokeWidth={1.75} />
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1 text-[11px] font-bold text-slate-900">
-                  0
-                </span>
-              </span>
-              <span className="hidden text-sm font-bold sm:inline">Cart</span>
-            </Link>
-          </div>
+          </nav>
         </div>
 
-        {/* SECONDARY NAV — departments */}
-        <div className="bg-slate-900">
-          <div className="container-page">
-            <nav className="flex h-10 items-center gap-5 overflow-x-auto text-sm font-medium text-white">
-              <button className="inline-flex items-center gap-1 hover:text-amber-300">
-                <span className="text-base">☰</span> All
-              </button>
-              <Link href="/category/electronics" className="hover:text-amber-300">Electronics</Link>
-              <Link href="/category/fashion" className="hover:text-amber-300">Fashion</Link>
-              <Link href="/category/home" className="hover:text-amber-300">Home</Link>
-              <Link href="/category/beauty" className="hover:text-amber-300">Beauty</Link>
-              <Link href="/category/books" className="hover:text-amber-300">Books</Link>
-              <Link href="/category/toys" className="hover:text-amber-300">Toys</Link>
-              <Link href="/category/grocery" className="hover:text-amber-300">Grocery</Link>
-              <Link href="/category/sports" className="hover:text-amber-300">Sports</Link>
-              <Link href="/deals" className="text-amber-300 hover:text-amber-200">Today&rsquo;s Deals</Link>
-              <Link href="/sell" className="ml-auto whitespace-nowrap hover:text-amber-300">
-                Sell on Onsective
-              </Link>
-            </nav>
-          </div>
+        {/* Mood pills row */}
+        <div className="hidden h-12 items-center gap-2 overflow-x-auto pb-2 md:flex">
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-500">
+            Shop by mood
+          </span>
+          <span className="h-3 w-px bg-stone-300" aria-hidden />
+          {MOODS.map((m) => (
+            <Link
+              key={m.href}
+              href={m.href}
+              className="shrink-0 rounded-full border border-stone-300 bg-white px-3 py-1 text-xs text-stone-700 transition-colors hover:border-stone-900 hover:bg-stone-900 hover:text-white"
+            >
+              {m.label}
+            </Link>
+          ))}
         </div>
       </div>
     </header>
