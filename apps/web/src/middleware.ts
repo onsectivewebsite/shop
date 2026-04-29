@@ -30,8 +30,19 @@ function isSellerHost(host: string | null): boolean {
   return host.split(':')[0]?.toLowerCase() === SELLER_SUBDOMAIN;
 }
 
+// CloudPanel/Nginx commonly proxies app traffic with Host=localhost. Trust the
+// X-Forwarded-Host header first, fall back to Host. This is safe because the
+// edge (CloudPanel's nginx) is the only thing that can set X-Forwarded-Host
+// for traffic reaching us — we don't expose Next.js directly.
+function effectiveHost(req: NextRequest): string | null {
+  return (
+    req.headers.get('x-forwarded-host') ??
+    req.headers.get('host')
+  );
+}
+
 export default function middleware(req: NextRequest) {
-  const host = req.headers.get('host');
+  const host = effectiveHost(req);
 
   // On seller.itsnottechy.cloud, the root path goes straight to the seller
   // dashboard. Everything outside the seller surface gets redirected to the
