@@ -14,7 +14,9 @@ export function Verify2FAForm() {
   const [error, setError] = useState<string | null>(null);
 
   const verify = trpc.auth.verifyTwoFactor.useMutation({
-    onSuccess: () => router.push('/'),
+    onSuccess: () => {
+      window.location.href = '/';
+    },
     onError: (e) => setError(e.message),
   });
 

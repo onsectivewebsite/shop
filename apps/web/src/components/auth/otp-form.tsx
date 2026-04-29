@@ -18,7 +18,9 @@ export function OtpForm() {
   });
 
   const verify = trpc.auth.verifyEmailOtp.useMutation({
-    onSuccess: () => router.push('/'),
+    onSuccess: () => {
+      window.location.href = '/';
+    },
     onError: (e) => setError(e.message),
   });
 

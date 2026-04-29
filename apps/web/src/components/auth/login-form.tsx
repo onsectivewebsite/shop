@@ -25,14 +25,16 @@ export function LoginForm() {
         router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
         return;
       }
-      router.push('/');
+      window.location.href = '/';
     },
     onError: (e) => setError(e.message),
   });
 
   const passkeyRequest = trpc.auth.passkeys.requestAuthentication.useMutation();
   const passkeyVerify = trpc.auth.passkeys.verifyAuthentication.useMutation({
-    onSuccess: () => router.push('/'),
+    onSuccess: () => {
+      window.location.href = '/';
+    },
   });
 
   async function signInWithPasskey() {

@@ -16,7 +16,9 @@ export function ResetForm() {
   const [error, setError] = useState<string | null>(null);
 
   const reset = trpc.auth.resetPassword.useMutation({
-    onSuccess: () => router.push('/'),
+    onSuccess: () => {
+      window.location.href = '/';
+    },
     onError: (e) => setError(e.message),
   });
 

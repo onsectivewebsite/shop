@@ -14,7 +14,9 @@ export function VerifyEmailForm() {
   const [error, setError] = useState<string | null>(null);
 
   const verify = trpc.auth.verifySignupEmail.useMutation({
-    onSuccess: () => router.push('/'),
+    onSuccess: () => {
+      window.location.href = '/';
+    },
     onError: (e) => setError(e.message),
   });
 
