@@ -70,6 +70,7 @@ model User {
   otps           Otp[]
   passkeys       Passkey[]
   webauthnChallenges WebAuthnChallenge[]
+  wishlistItems  WishlistItem[]
   primeMembership PrimeMembership?
   returns        Return[]
   organizationMemberships OrganizationMember[]
@@ -366,11 +367,24 @@ model Product {
   reviews       Review[]
   questions     ProductQuestion[]
   adCampaigns   AdCampaign[]
+  wishlistItems WishlistItem[]
 
   @@index([sellerId, status])
   @@index([categoryId, status])
   @@index([countryCode, status])
   @@index([slug])
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId, createdAt])
 }
 
 model Variant {

@@ -2,9 +2,11 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Badge } from '@onsective/ui';
 import { prisma } from '@/server/db';
+import { getSession } from '@/server/auth/session';
 import { ProductGallery } from '@/components/product/gallery';
 import { Buybox, type BuyboxVariant } from '@/components/product/buybox';
 import { RelatedAds } from '@/components/product/related-ads';
+import { WishlistHeart } from '@/components/wishlist-heart';
 
 type Props = { params: { locale: string; slug: string } };
 
@@ -47,6 +49,17 @@ export default async function ProductPage({ params }: Props) {
 
   const variants: BuyboxVariant[] = product.variants;
 
+  // Load saved-state for the wishlist heart so the SSR matches the user's state.
+  const session = await getSession();
+  const savedToWishlist = session
+    ? Boolean(
+        await prisma.wishlistItem.findUnique({
+          where: { userId_productId: { userId: session.user.id, productId: product.id } },
+          select: { id: true },
+        }),
+      )
+    : false;
+
   return (
     <div className="container-page py-8">
       <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
@@ -75,12 +88,17 @@ export default async function ProductPage({ params }: Props) {
 
         <div className="space-y-6">
           <div className="space-y-2">
-            {product.brand && (
-              <p className="text-sm uppercase tracking-wide text-slate-500">{product.brand}</p>
-            )}
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              {product.title}
-            </h1>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                {product.brand && (
+                  <p className="text-sm uppercase tracking-wide text-slate-500">{product.brand}</p>
+                )}
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                  {product.title}
+                </h1>
+              </div>
+              <WishlistHeart productId={product.id} initialSaved={savedToWishlist} size="md" />
+            </div>
             <p className="text-sm text-slate-600">
               Sold by{' '}
               <span className="font-medium text-slate-900">{product.seller.displayName}</span>
