@@ -246,6 +246,10 @@ model Seller {
   // carrier collect-on-delivery integration.
   defaultIncoterm     String?      // 'DDP' | 'DAP'
 
+  // Phase 4: catalog seeded demo accounts. Excluded from real Stripe payouts
+  // and wipeable via `pnpm db:seed:demo --reset` before launch.
+  isDemo              Boolean      @default(false)
+
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
@@ -261,6 +265,7 @@ model Seller {
 
   @@index([countryCode])
   @@index([status])
+  @@index([isDemo])
 }
 
 enum KycDocType {

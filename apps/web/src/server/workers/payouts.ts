@@ -44,6 +44,9 @@ export async function runPayoutsBatch(opts: {
       stripePayoutsEnabled: true,
       stripeAccountId: { not: null },
       status: { not: 'SUSPENDED' },
+      // Demo sellers from `db:seed:demo` are visible in catalog but never
+      // receive a real Stripe transfer.
+      isDemo: false,
     },
     select: { id: true, stripeAccountId: true },
   });

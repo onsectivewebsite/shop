@@ -22,6 +22,7 @@
     "db:migrate": "pnpm --filter @onsective/db migrate",
     "db:studio": "pnpm --filter @onsective/db studio",
     "db:seed": "pnpm --filter @onsective/db seed",
+    "db:seed:demo": "pnpm --filter @onsective/db seed:demo",
     "clean": "turbo clean && rm -rf node_modules"
   },
   "devDependencies": {

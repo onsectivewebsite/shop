@@ -94,6 +94,35 @@ Products bucket needs CORS to allow direct browser uploads:
 
 In prod prefer **private bucket + CloudFront OAC** over public-read. Update the `S3_PUBLIC_URL_BASE` env to the CloudFront domain and remove the `ACL: 'public-read'` line in `apps/web/src/server/uploads.ts`.
 
+### 6.1 CloudFront + OAC setup (Phase 4)
+
+1. **Create distribution**
+   - Origin domain: `<bucket>.s3.<region>.amazonaws.com`
+   - Origin access: **Origin access control settings** → create new OAC, signing behavior **Sign requests**
+   - Default cache behavior: **Redirect HTTP to HTTPS**, allow `GET, HEAD`
+   - Cache policy: **CachingOptimized** (CDN respects `Cache-Control: public, max-age=31536000, immutable` already set by the variants worker)
+   - Compress objects: **Yes**
+2. **Attach OAC to bucket policy** — CloudFront prints a JSON snippet on the OAC step. Paste it into the bucket's Permissions → Bucket policy.
+3. **Block public access** on the bucket once OAC is verified working (`aws s3api put-public-access-block …`).
+4. **Custom domain (optional)** — point `images.itsnottechy.cloud` at the distribution, attach an ACM cert in `us-east-1`.
+5. **Wire the env**:
+   ```bash
+   S3_PUBLIC_URL_BASE=https://images.itsnottechy.cloud
+   # or, without custom domain:
+   S3_PUBLIC_URL_BASE=https://d1234abcd.cloudfront.net
+   ```
+   `apps/seller/src/server/uploads.ts` reads this and rewrites all returned image URLs through the CDN.
+
+### 6.2 Demo catalog seed (Phase 4)
+
+```bash
+pnpm db:seed         # categories (idempotent, safe to re-run)
+pnpm db:seed:demo    # 4 demo sellers + ~55 products with Unsplash imagery
+pnpm db:seed:demo --reset   # wipe demo data before launch
+```
+
+Demo sellers carry `isDemo: true`. The hourly payouts sweep skips them, so they can sit alongside real sellers indefinitely without triggering Stripe transfers. Image URLs point at `images.unsplash.com` directly, so this works before you stand up S3 — once the CDN is live, replace the URLs in `prisma/demo-seed.ts` (or upload the images to S3 and re-run the seed).
+
 ## 7. Stripe Connect
 
 1. In the Stripe dashboard → Connect → Settings, enable Express accounts
@@ -110,6 +139,7 @@ Add a webhook at `https://itsnottechy.cloud/api/webhooks/easypost`. Signing key 
 - [ ] All env vars set in Secrets Manager
 - [ ] DB migrations applied (`pnpm --filter @onsective/db deploy`)
 - [ ] Categories seeded (`pnpm db:seed`)
+- [ ] Demo catalog seeded (`pnpm db:seed:demo`) — optional pre-launch
 - [ ] Web app green at `/en` (renders the category strip)
 - [ ] Console reachable at `:3001/login` (PM-role user can log in)
 - [ ] Stripe webhook test event delivers a 200

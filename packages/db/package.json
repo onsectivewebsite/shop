@@ -15,7 +15,8 @@
     "studio": "prisma studio",
     "format": "prisma format",
     "type-check": "tsc --noEmit",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "seed:demo": "tsx prisma/demo-seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0"
