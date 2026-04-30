@@ -13,6 +13,7 @@
     "worker:payouts": "tsx scripts/worker-payouts.ts",
     "worker:images": "tsx scripts/worker-images.ts",
     "worker:search-index": "tsx scripts/worker-search-index.ts",
+    "worker:data-export": "tsx scripts/worker-data-export.ts",
     "cron:payouts": "tsx scripts/cron-payouts.ts",
     "cron:ads-reset": "tsx scripts/cron-ads-reset.ts",
     "reindex:search": "tsx scripts/reindex-search.ts"

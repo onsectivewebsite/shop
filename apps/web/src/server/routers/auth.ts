@@ -9,6 +9,10 @@ import {
 } from '../passkeys';
 import { prisma } from '../db';
 import {
+  dataExportQueue,
+  DATA_EXPORT_JOB,
+} from '../queue';
+import {
   hashPassword,
   verifyPassword,
   createSession,
@@ -266,6 +270,68 @@ export const authRouter = router({
     regenerate: protectedProcedure.mutation(async ({ ctx }) => {
       const codes = await regenerateRecoveryCodes(ctx.user!.id);
       return { codes };
+    }),
+  }),
+
+  dataExport: router({
+    // Latest job (if any). Polled by the UI after a request to surface
+    // progress + the eventual delivery acknowledgement.
+    status: protectedProcedure.query(async ({ ctx }) => {
+      const job = await prisma.dataExportJob.findFirst({
+        where: { userId: ctx.user!.id },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          completedAt: true,
+          expiresAt: true,
+          bytes: true,
+          emailedTo: true,
+        },
+      });
+      return job;
+    }),
+
+    request: protectedProcedure.use(authRateLimit).mutation(async ({ ctx }) => {
+      // No more than one queued/running job at a time, and not more than one
+      // ready job per 24h window. The S3 link expires in 24h anyway, so
+      // re-issuing inside that window is just abuse surface.
+      const recent = await prisma.dataExportJob.findFirst({
+        where: { userId: ctx.user!.id },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (recent) {
+        if (recent.status === 'QUEUED' || recent.status === 'RUNNING') {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'A previous export is still being prepared. Check back in a minute.',
+          });
+        }
+        const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        if (recent.status === 'READY' && recent.createdAt > dayAgo) {
+          throw new TRPCError({
+            code: 'TOO_MANY_REQUESTS',
+            message: 'You already requested an export in the last 24 hours. Please reuse the email link.',
+          });
+        }
+      }
+
+      const job = await prisma.dataExportJob.create({
+        data: { userId: ctx.user!.id, emailedTo: ctx.user!.email },
+      });
+      await dataExportQueue().add(
+        DATA_EXPORT_JOB,
+        { jobId: job.id },
+        {
+          jobId: `data-export:${job.id}`,
+          removeOnComplete: { count: 100 },
+          removeOnFail: { count: 200 },
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 30_000 },
+        },
+      );
+      return { id: job.id };
     }),
   }),
 

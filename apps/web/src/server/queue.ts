@@ -60,6 +60,23 @@ export function searchIndexQueue(): Queue<SearchIndexJob> {
   return _searchIndexQueue;
 }
 
+export const DATA_EXPORT_QUEUE_NAME = 'data-export';
+export const DATA_EXPORT_JOB = 'export-user-data';
+
+export type DataExportQueueJob = {
+  jobId: string;
+};
+
+let _dataExportQueue: Queue<DataExportQueueJob> | null = null;
+export function dataExportQueue(): Queue<DataExportQueueJob> {
+  if (!_dataExportQueue) {
+    _dataExportQueue = new Queue<DataExportQueueJob>(DATA_EXPORT_QUEUE_NAME, {
+      connection: getRedisConnection(),
+    });
+  }
+  return _dataExportQueue;
+}
+
 /**
  * Fire-and-forget enqueue used by mutation paths. Swallows queue errors so a
  * Redis blip can't break product writes — the periodic full reindex covers

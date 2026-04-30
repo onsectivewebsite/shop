@@ -70,6 +70,7 @@ model User {
   sessions       Session[]
   otps           Otp[]
   recoveryCodes  RecoveryCode[]
+  dataExportJobs DataExportJob[]
   passkeys       Passkey[]
   webauthnChallenges WebAuthnChallenge[]
   wishlistItems  WishlistItem[]
@@ -127,6 +128,36 @@ model RecoveryCode {
   createdAt  DateTime @default(now())
 
   @@index([userId])
+}
+
+enum DataExportStatus {
+  QUEUED
+  RUNNING
+  READY
+  FAILED
+}
+
+// GDPR Article 20 (data portability). User requests a dump; the data-export
+// worker bundles their owned records into a JSON blob, uploads to a private
+// S3 bucket, and emails them a 24-hour presigned URL. The row is the audit
+// trail — we keep it after expiresAt so we can prove the request was honoured.
+model DataExportJob {
+  id           String           @id @default(cuid())
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status       DataExportStatus @default(QUEUED)
+  s3Key        String?
+  // Email recipient at time of request — locks in the address even if the
+  // user changes their email between request and delivery.
+  emailedTo    String
+  bytes        Int?
+  error        String?
+  expiresAt    DateTime?
+  createdAt    DateTime         @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  @@index([userId, createdAt])
 }
 
 // ============================================================================

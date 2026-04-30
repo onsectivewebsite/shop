@@ -151,6 +151,29 @@ export async function sendOtpSms(to: string, code: string): Promise<void> {
   await sendSms(to, `Your Onsective code is ${code}. It expires in 10 minutes.`);
 }
 
+export async function sendDataExportEmail(
+  to: string,
+  meta: { url: string; expiresAt: Date; bytes: number },
+): Promise<void> {
+  const expires = meta.expiresAt.toUTCString();
+  const sizeKb = Math.round(meta.bytes / 1024);
+  await send({
+    to,
+    subject: 'Your Onsective data export is ready',
+    text:
+      `Your personal data export is ready (${sizeKb} KB). ` +
+      `Download it before ${expires}: ${meta.url}`,
+    html: shell(
+      'Your data export is ready',
+      `<p>You requested a copy of the personal data we hold for your Onsective account.</p>
+       <p>It's a single JSON file (${sizeKb} KB). The link below works for the next 24 hours and then expires:</p>
+       <p style="margin: 16px 0;"><a href="${meta.url}" style="display:inline-block;background:#0f172a;color:white;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:600;font-size:14px;">Download my data</a></p>
+       <p style="font-size: 13px; color: #64748b;">Expires ${expires}.</p>
+       <p style="font-size: 13px; color: #64748b;">If you didn't request this, ignore the email and change your password — someone else is signed in to your account.</p>`,
+    ),
+  });
+}
+
 export async function sendTwoFactorSms(to: string, code: string): Promise<void> {
   await sendSms(
     to,
