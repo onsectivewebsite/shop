@@ -5,6 +5,7 @@ import {
   KeyRound,
   Building2,
   Heart,
+  ShieldCheck,
   ArrowUpRight,
   type LucideIcon,
 } from 'lucide-react';
@@ -35,6 +36,7 @@ export default async function AccountPage({ params }: { params: { locale: string
         <div className="mt-16 grid gap-px bg-slate-200 sm:grid-cols-2">
           <AccountTile href="/account/orders" icon={Package} title="Orders" sub="Track shipments and view history" />
           <AccountTile href="/account/passkeys" icon={KeyRound} title="Passkeys" sub="Faster sign-in with your device" />
+          <AccountTile href="/account/security" icon={ShieldCheck} title="Security" sub="Recovery codes and account safety" />
           <AccountTile href="/account/organization" icon={Building2} title="Organization" sub="B2B accounts and team members" />
           <AccountTile href="/account/wishlist" icon={Heart} title="Wishlist" sub="Saved items you'll want again" />
         </div>

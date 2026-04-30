@@ -15,6 +15,9 @@ import {
   destroySession,
   issueOtp,
   verifyOtp,
+  regenerateRecoveryCodes,
+  recoveryCodesStatus,
+  consumeRecoveryCode,
 } from '../auth';
 import {
   sendOtpEmail,
@@ -187,6 +190,71 @@ export const authRouter = router({
       });
       return { ok: true };
     }),
+
+  // Recovery-code path: same outcome as verifyTwoFactor, but the user proves
+  // control with a one-shot backup code (printed at /account/security) instead
+  // of the email OTP. Useful when the email account is compromised or out
+  // of reach.
+  verifyRecoveryCode: publicProcedure
+    .use(authRateLimit)
+    .input(
+      z.object({
+        email: emailSchema,
+        // Codes are 14 hex chars rendered with dashes; accept either format.
+        code: z.string().min(14).max(20),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const user = await prisma.user.findUnique({ where: { email: input.email } });
+      if (!user) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid recovery code.' });
+      }
+      if (user.status !== 'ACTIVE') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Account is not active.' });
+      }
+
+      const ok = await consumeRecoveryCode(user.id, input.code);
+      if (!ok) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid recovery code.' });
+      }
+
+      const ip = ctx.ipAddress ?? null;
+      const ua = ctx.userAgent ?? null;
+      const isNewDevice = ip !== user.lastLoginIp || ua !== user.lastLoginUserAgent;
+      const now = new Date();
+
+      await createSession(user.id, {
+        ipAddress: ip ?? undefined,
+        userAgent: ua ?? undefined,
+      });
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          lastLoginAt: now,
+          lastLoginIp: ip,
+          lastLoginUserAgent: ua,
+        },
+      });
+
+      // Always notify on a recovery-code login — by definition the regular
+      // 2FA channel was bypassed, so the user should know.
+      await safeSend('recovery code login', () =>
+        sendNewDeviceLoginEmail(user.email, { ip, userAgent: ua, at: now }),
+      );
+
+      const remaining = await recoveryCodesStatus(user.id);
+      return { ok: true, recoveryCodesRemaining: remaining.unused };
+    }),
+
+  recoveryCodes: router({
+    status: protectedProcedure.query(async ({ ctx }) => {
+      return recoveryCodesStatus(ctx.user!.id);
+    }),
+    regenerate: protectedProcedure.mutation(async ({ ctx }) => {
+      const codes = await regenerateRecoveryCodes(ctx.user!.id);
+      return { codes };
+    }),
+  }),
 
   verifyTwoFactor: publicProcedure
     .use(authRateLimit)

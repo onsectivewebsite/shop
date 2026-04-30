@@ -10,3 +10,9 @@ export {
 export type { SessionMeta, IssuedSession } from './sessions';
 export { generateCode, issueOtp, verifyOtp } from './otp';
 export type { OtpChannel, OtpPurpose } from './otp';
+export {
+  regenerateRecoveryCodes,
+  recoveryCodesStatus,
+  consumeRecoveryCode,
+  RECOVERY_CODES_PER_BATCH,
+} from './recovery';

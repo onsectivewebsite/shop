@@ -68,6 +68,7 @@ model User {
   reviews        Review[]
   sessions       Session[]
   otps           Otp[]
+  recoveryCodes  RecoveryCode[]
   passkeys       Passkey[]
   webauthnChallenges WebAuthnChallenge[]
   wishlistItems  WishlistItem[]
@@ -111,6 +112,20 @@ model Otp {
   createdAt  DateTime @default(now())
 
   @@index([destination, purpose])
+}
+
+// One-shot 2FA backup codes. User generates 10 at a time; we hash on write,
+// shown plaintext to the user exactly once. Each code is consumed atomically
+// at verify time so concurrent submissions can't double-spend.
+model RecoveryCode {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash   String   @unique
+  consumedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
 }
 
 // ============================================================================
