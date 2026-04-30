@@ -293,6 +293,49 @@ export const reviewsRouter = router({
       return { ok: true };
     }),
 
+  /**
+   * Flag a review for moderation. Idempotent on (reviewId, reporterId) — a
+   * second click does nothing rather than erroring, so the UI can render a
+   * stable "Reported" state without bookkeeping.
+   */
+  report: protectedProcedure
+    .input(
+      z.object({
+        reviewId: z.string(),
+        reason: z.enum(['SPAM', 'OFFENSIVE', 'OFF_TOPIC', 'FAKE', 'OTHER']),
+        note: z.string().trim().max(500).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const exists = await prisma.review.findUnique({
+        where: { id: input.reviewId },
+        select: { id: true, buyerId: true },
+      });
+      if (!exists) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (exists.buyerId === ctx.user!.id) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: "You can't report your own review.",
+        });
+      }
+      try {
+        await prisma.reviewReport.create({
+          data: {
+            reviewId: input.reviewId,
+            reporterId: ctx.user!.id,
+            reason: input.reason,
+            note: input.note,
+          },
+        });
+      } catch (err: unknown) {
+        // Unique violation = the user already reported this review. Don't
+        // surface that as an error — keep the action idempotent.
+        const code = (err as { code?: string }).code;
+        if (code !== 'P2002') throw err;
+      }
+      return { ok: true };
+    }),
+
   /** Buyer's own reviews — used by /account/reviews to manage them. */
   mine: protectedProcedure
     .input(z.object({ limit: z.number().int().min(1).max(50).default(20), cursor: z.string().optional() }))

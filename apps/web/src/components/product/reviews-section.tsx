@@ -94,11 +94,14 @@ export function ReviewsSection({ productId }: { productId: string }) {
             key={r.id}
             className="border-b border-slate-100 pb-6 last:border-b-0 last:pb-0"
           >
-            <div className="flex items-center gap-2">
-              <Stars value={r.rating} />
-              {r.title && (
-                <span className="text-sm font-semibold text-slate-900">{r.title}</span>
-              )}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Stars value={r.rating} />
+                {r.title && (
+                  <span className="text-sm font-semibold text-slate-900">{r.title}</span>
+                )}
+              </div>
+              <ReportMenu reviewId={r.id} />
             </div>
             <p className="mt-1 text-xs text-slate-500">
               {r.buyerLabel} ·{' '}
@@ -137,6 +140,65 @@ export function ReviewsSection({ productId }: { productId: string }) {
         ))}
       </ul>
     </section>
+  );
+}
+
+type Reason = 'SPAM' | 'OFFENSIVE' | 'OFF_TOPIC' | 'FAKE' | 'OTHER';
+const REASON_LABELS: Record<Reason, string> = {
+  SPAM: 'Spam or promotional',
+  OFFENSIVE: 'Offensive or hateful',
+  OFF_TOPIC: 'Off topic',
+  FAKE: 'Looks fake',
+  OTHER: 'Other',
+};
+
+function ReportMenu({ reviewId }: { reviewId: string }) {
+  const me = trpc.auth.me.useQuery();
+  const [open, setOpen] = useState(false);
+  const [reported, setReported] = useState(false);
+
+  const report = trpc.reviews.report.useMutation({
+    onSuccess: () => {
+      setReported(true);
+      setOpen(false);
+    },
+  });
+
+  if (reported) {
+    return <span className="text-xs text-slate-400">Reported, thanks.</span>;
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => {
+          if (!me.data) {
+            window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
+            return;
+          }
+          setOpen((v) => !v);
+        }}
+        className="text-xs text-slate-400 hover:text-slate-700"
+      >
+        Report
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-10 mt-1 w-56 rounded-md border border-slate-200 bg-white p-1 shadow-lg">
+          {(Object.keys(REASON_LABELS) as Reason[]).map((reason) => (
+            <button
+              key={reason}
+              type="button"
+              onClick={() => report.mutate({ reviewId, reason })}
+              disabled={report.isLoading}
+              className="block w-full rounded px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+            >
+              {REASON_LABELS[reason]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

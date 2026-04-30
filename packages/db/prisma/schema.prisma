@@ -1273,8 +1273,35 @@ model Review {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
+  reports         ReviewReport[]
+
   @@index([productId, rating])
   @@index([buyerId])
+}
+
+enum ReviewReportReason {
+  SPAM
+  OFFENSIVE
+  OFF_TOPIC
+  FAKE
+  OTHER
+}
+
+// Buyer-side flag on a review. We don't auto-hide on first flag — moderation
+// reviews the queue and hides via Review.isHidden + hiddenReason. Unique pair
+// keeps a single user from spamming reports on the same review.
+model ReviewReport {
+  id         String             @id @default(cuid())
+  reviewId   String
+  review     Review             @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reporterId String
+  reason     ReviewReportReason
+  note       String?            // optional free-text context
+  createdAt  DateTime           @default(now())
+
+  @@unique([reviewId, reporterId])
+  @@index([reviewId])
+  @@index([createdAt])
 }
 
 model ProductQuestion {
