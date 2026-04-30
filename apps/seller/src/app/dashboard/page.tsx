@@ -28,6 +28,15 @@ export default async function SellerDashboard() {
   });
   if (!seller) redirect('/apply');
 
+  const openOrdersCount = seller.status === 'APPROVED'
+    ? await prisma.orderItem.count({
+        where: {
+          sellerId: seller.id,
+          status: { in: ['CREATED', 'PAID', 'CONFIRMED', 'PARTIALLY_SHIPPED'] },
+        },
+      })
+    : 0;
+
   return (
     <SellerShell email={session.user.email} name={session.user.fullName ?? undefined}>
       <div className="container-page py-10 md:py-14">
@@ -120,7 +129,12 @@ export default async function SellerDashboard() {
                 title="Products"
                 sub={`${seller._count.products} active`}
               />
-              <SoonTile icon={Receipt} title="Orders" />
+              <ActionTile
+                href="/dashboard/orders"
+                icon={Receipt}
+                title="Orders"
+                sub={openOrdersCount > 0 ? `${openOrdersCount} to ship` : 'No open orders'}
+              />
               <SoonTile icon={Wallet} title="Payouts ledger" />
               <SoonTile icon={BarChart3} title="Analytics" />
             </div>
