@@ -1,5 +1,6 @@
 import { ProductCard } from '@/components/product-card';
 import { SponsoredCard } from '@/components/sponsored-card';
+import { SearchFilters } from '@/components/search-filters';
 import { prisma } from '@/server/db';
 import { Prisma } from '@onsective/db';
 import { isOpenSearchEnabled, searchProducts } from '@/server/search/opensearch';
@@ -9,7 +10,14 @@ const SPONSORED_SLOTS = 2;
 
 type Props = {
   params: { locale: string };
-  searchParams: { q?: string; page?: string };
+  searchParams: {
+    q?: string;
+    page?: string;
+    minPrice?: string;
+    maxPrice?: string;
+    brand?: string;
+    minRating?: string;
+  };
 };
 
 export async function generateMetadata({ searchParams }: Props) {
@@ -25,8 +33,34 @@ type SearchHitItem = {
   variants: Array<{ priceAmount: number; mrpAmount: number | null; currency: string }>;
 };
 
-async function runSearch(q: string, page: number): Promise<{ items: SearchHitItem[]; total: number }> {
-  if (isOpenSearchEnabled()) {
+type Filters = {
+  minPrice: number | null;
+  maxPrice: number | null;
+  brand: string;
+  minRating: number | null;
+};
+
+function parseFilters(sp: Props['searchParams']): Filters {
+  const minPrice = Number(sp.minPrice);
+  const maxPrice = Number(sp.maxPrice);
+  const minRating = Number(sp.minRating);
+  return {
+    minPrice: Number.isFinite(minPrice) && minPrice > 0 ? Math.floor(minPrice) : null,
+    maxPrice: Number.isFinite(maxPrice) && maxPrice > 0 ? Math.floor(maxPrice) : null,
+    brand: (sp.brand ?? '').trim(),
+    minRating: Number.isFinite(minRating) && minRating > 0 ? minRating : null,
+  };
+}
+
+async function runSearch(
+  q: string,
+  page: number,
+  f: Filters,
+): Promise<{ items: SearchHitItem[]; total: number }> {
+  // OpenSearch backend doesn't yet do filters — fall through to Postgres for
+  // filtered queries until Phase 8 wires faceted search.
+  const hasFilters = f.minPrice !== null || f.maxPrice !== null || f.brand !== '' || f.minRating !== null;
+  if (isOpenSearchEnabled() && !hasFilters) {
     const { items, total } = await searchProducts({ q, page, perPage: PER_PAGE });
     return {
       items: items.map((h) => ({
@@ -45,14 +79,42 @@ async function runSearch(q: string, page: number): Promise<{ items: SearchHitIte
   }
 
   const offset = (page - 1) * PER_PAGE;
+
+  const brandClause = f.brand
+    ? Prisma.sql`AND p."brand" ILIKE ${`%${f.brand}%`}`
+    : Prisma.empty;
+  const ratingClause = f.minRating !== null
+    ? Prisma.sql`AND s."ratingAvg" >= ${f.minRating}`
+    : Prisma.empty;
+  const priceClause =
+    f.minPrice !== null || f.maxPrice !== null
+      ? Prisma.sql`
+          AND EXISTS (
+            SELECT 1 FROM "Variant" v
+            WHERE v."productId" = p."id"
+              AND v."isActive"
+              ${f.minPrice !== null ? Prisma.sql`AND v."priceAmount" >= ${f.minPrice}` : Prisma.empty}
+              ${f.maxPrice !== null ? Prisma.sql`AND v."priceAmount" <= ${f.maxPrice}` : Prisma.empty}
+          )
+        `
+      : Prisma.empty;
+  const sellerJoin =
+    f.minRating !== null
+      ? Prisma.sql`JOIN "Seller" s ON s."id" = p."sellerId"`
+      : Prisma.empty;
+
   const rows = await prisma.$queryRaw<
     Array<{ id: string; slug: string; title: string; brand: string | null; images: string[]; total: bigint }>
   >(Prisma.sql`
     SELECT p."id", p."slug", p."title", p."brand", p."images",
            COUNT(*) OVER() AS total
     FROM "Product" p
+    ${sellerJoin}
     WHERE p."status" = 'ACTIVE'
       AND p."searchVector" @@ websearch_to_tsquery('english', ${q})
+      ${brandClause}
+      ${ratingClause}
+      ${priceClause}
     ORDER BY ts_rank(p."searchVector", websearch_to_tsquery('english', ${q})) DESC,
              p."createdAt" DESC
     LIMIT ${PER_PAGE} OFFSET ${offset}
@@ -140,57 +202,85 @@ async function runAdSlate(query: string) {
 export default async function SearchPage({ params, searchParams }: Props) {
   const q = (searchParams.q ?? '').trim();
   const page = Math.max(1, Number(searchParams.page ?? 1) || 1);
+  const filters = parseFilters(searchParams);
 
   if (!q) {
     return (
       <div className="container-page py-12 text-center">
-        <h1 className="text-2xl font-bold">Search the marketplace</h1>
-        <p className="mt-2 text-sm text-slate-500">Type a query in the header search box.</p>
+        <h1 className="font-display text-3xl font-medium text-stone-950">
+          Search the marketplace
+        </h1>
+        <p className="mt-2 text-sm text-stone-500">Type a query in the header search box.</p>
       </div>
     );
   }
 
-  const [{ items, total }, ads] = await Promise.all([runSearch(q, page), runAdSlate(q)]);
-  // Filter out sponsored products that would also appear in organic — same
-  // product shouldn't appear twice on the page.
+  const [{ items, total }, ads] = await Promise.all([runSearch(q, page, filters), runAdSlate(q)]);
   const adProductIds = new Set(ads.map((a) => a.product.id));
   const organicItems = items.filter((it) => !adProductIds.has(it.id));
 
+  const activeFilterCount =
+    (filters.minPrice !== null ? 1 : 0) +
+    (filters.maxPrice !== null ? 1 : 0) +
+    (filters.brand ? 1 : 0) +
+    (filters.minRating !== null ? 1 : 0);
+
   return (
     <div className="container-page py-8">
-      <header className="flex items-end justify-between gap-4">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <h1 className="font-display text-3xl font-medium tracking-tight text-stone-950 md:text-4xl">
           Results for &ldquo;{q}&rdquo;
         </h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-stone-500">
           {total === 0 ? 'No matches' : `${total.toLocaleString()} matches`}
+          {activeFilterCount > 0 && ` · ${activeFilterCount} filter${activeFilterCount === 1 ? '' : 's'} applied`}
         </p>
       </header>
 
-      {ads.length === 0 && organicItems.length === 0 ? (
-        <div className="mt-12 rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center text-sm text-slate-500">
-          No products match &ldquo;{q}&rdquo;.
+      <div className="mt-8 grid gap-8 md:grid-cols-[260px_1fr]">
+        <SearchFilters
+          q={q}
+          locale={params.locale}
+          minPrice={filters.minPrice}
+          maxPrice={filters.maxPrice}
+          brand={filters.brand}
+          minRating={filters.minRating}
+        />
+
+        <div>
+          {ads.length === 0 && organicItems.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-stone-300 bg-white p-12 text-center">
+              <p className="font-display text-2xl font-medium text-stone-950">
+                Nothing matches &ldquo;{q}&rdquo;
+              </p>
+              <p className="mt-2 text-sm text-stone-600">
+                {activeFilterCount > 0
+                  ? 'Try clearing the filters or broadening your search.'
+                  : 'Try a different keyword or check the spelling.'}
+              </p>
+            </div>
+          ) : (
+            <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {ads.map((ad) => (
+                <li key={`ad-${ad.campaignId}`}>
+                  <SponsoredCard
+                    campaignId={ad.campaignId}
+                    query={q}
+                    placement="SEARCH_RESULTS"
+                    locale={params.locale}
+                    product={ad.product}
+                  />
+                </li>
+              ))}
+              {organicItems.map((p) => (
+                <li key={p.id}>
+                  <ProductCard locale={params.locale} product={p} />
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      ) : (
-        <ul className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {ads.map((ad) => (
-            <li key={`ad-${ad.campaignId}`}>
-              <SponsoredCard
-                campaignId={ad.campaignId}
-                query={q}
-                placement="SEARCH_RESULTS"
-                locale={params.locale}
-                product={ad.product}
-              />
-            </li>
-          ))}
-          {organicItems.map((p) => (
-            <li key={p.id}>
-              <ProductCard locale={params.locale} product={p} />
-            </li>
-          ))}
-        </ul>
-      )}
+      </div>
     </div>
   );
 }
