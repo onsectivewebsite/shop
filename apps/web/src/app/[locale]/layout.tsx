@@ -56,7 +56,7 @@ export default async function LocaleLayout({
         <TRPCProvider>
           <NextIntlClientProvider messages={messages}>
             <ImpersonationBanner />
-            <Header />
+            <Header locale={locale} />
             <main>{children}</main>
             <Footer />
           </NextIntlClientProvider>

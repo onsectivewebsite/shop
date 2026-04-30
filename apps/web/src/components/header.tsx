@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
-import { Search, ShoppingBag, Heart, Globe } from 'lucide-react';
+import { Search, ShoppingBag, Heart } from 'lucide-react';
 import { getSession } from '@/server/auth/session';
 import { UserMenu } from './user-menu';
+import { MobileMenu } from './mobile-menu';
 
-export async function Header() {
+export async function Header({ locale }: { locale: string }) {
   const t = await getTranslations('nav');
   const session = await getSession();
   const user = session?.user ?? null;
@@ -12,9 +13,11 @@ export async function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-stone-200/70 bg-white/80 backdrop-blur-xl">
       <div className="container-page">
-        <div className="flex h-16 items-center gap-3">
+        <div className="flex h-16 items-center gap-2 sm:gap-3">
+          <MobileMenu locale={locale} isAuthed={Boolean(user)} />
+
           <Link
-            href="/"
+            href={`/${locale}`}
             className="flex items-center gap-1 font-display text-2xl font-medium tracking-tight text-stone-950"
           >
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-stone-950 text-sm font-bold text-white">
@@ -23,8 +26,8 @@ export async function Header() {
             <span className="hidden sm:inline">onsective</span>
           </Link>
 
-          {/* Pill search */}
-          <div className="relative ml-1 hidden flex-1 sm:block">
+          {/* Pill search — desktop only; mobile uses the menu sheet */}
+          <form action={`/${locale}/search`} method="get" className="relative ml-1 hidden flex-1 sm:block">
             <Search
               className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-stone-400"
               size={16}
@@ -33,10 +36,11 @@ export async function Header() {
             />
             <input
               type="search"
+              name="q"
               placeholder="Search for products, brands, categories…"
               className="h-11 w-full rounded-full border border-stone-200 bg-stone-50 pl-11 pr-4 text-sm text-stone-900 placeholder:text-stone-400 transition-all focus:border-stone-950 focus:bg-white focus:outline-none focus:ring-4 focus:ring-stone-950/5"
             />
-          </div>
+          </form>
 
           <nav className="ml-auto flex items-center gap-1">
             <a
@@ -46,14 +50,14 @@ export async function Header() {
               Sell on Onsective
             </a>
             <Link
-              href="/account/wishlist"
+              href={`/${locale}/account/wishlist`}
               aria-label="Wishlist"
               className="hidden h-10 w-10 items-center justify-center rounded-full text-stone-700 transition-colors hover:bg-stone-100 sm:inline-flex"
             >
               <Heart size={18} strokeWidth={1.75} />
             </Link>
             <Link
-              href="/cart"
+              href={`/${locale}/cart`}
               aria-label={t('cart')}
               className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-stone-700 transition-colors hover:bg-stone-100"
             >
@@ -69,14 +73,14 @@ export async function Header() {
             ) : (
               <>
                 <Link
-                  href="/login"
+                  href={`/${locale}/login`}
                   className="hidden h-10 items-center rounded-full px-4 text-sm font-medium text-stone-700 transition-colors hover:text-stone-950 sm:inline-flex"
                 >
                   Sign in
                 </Link>
                 <Link
-                  href="/signup"
-                  className="inline-flex h-10 items-center rounded-full bg-stone-950 px-5 text-sm font-medium text-white transition-colors hover:bg-stone-800"
+                  href={`/${locale}/signup`}
+                  className="hidden h-10 items-center rounded-full bg-stone-950 px-5 text-sm font-medium text-white transition-colors hover:bg-stone-800 sm:inline-flex"
                 >
                   Join free
                 </Link>
@@ -85,19 +89,19 @@ export async function Header() {
           </nav>
         </div>
 
-        {/* Department strip */}
+        {/* Department strip — desktop only */}
         <nav className="hidden h-10 items-center gap-6 overflow-x-auto pb-1 text-[13px] font-medium text-stone-700 md:flex">
-          <Link href="/category/electronics" className="hover:text-stone-950">Electronics</Link>
-          <Link href="/category/fashion" className="hover:text-stone-950">Fashion</Link>
-          <Link href="/category/beauty" className="hover:text-stone-950">Beauty</Link>
-          <Link href="/category/home" className="hover:text-stone-950">Home & Kitchen</Link>
-          <Link href="/category/books" className="hover:text-stone-950">Books</Link>
-          <Link href="/category/toys" className="hover:text-stone-950">Toys & Kids</Link>
-          <Link href="/category/grocery" className="hover:text-stone-950">Grocery</Link>
-          <Link href="/category/sports" className="hover:text-stone-950">Sports & Outdoor</Link>
-          <span className="ml-auto rounded-full bg-rose-100 px-3 py-1 text-[12px] font-semibold text-rose-700">
+          <Link href={`/${locale}/category/electronics`} className="hover:text-stone-950">Electronics</Link>
+          <Link href={`/${locale}/category/fashion`} className="hover:text-stone-950">Fashion</Link>
+          <Link href={`/${locale}/category/beauty`} className="hover:text-stone-950">Beauty</Link>
+          <Link href={`/${locale}/category/home`} className="hover:text-stone-950">Home & Kitchen</Link>
+          <Link href={`/${locale}/category/books`} className="hover:text-stone-950">Books</Link>
+          <Link href={`/${locale}/category/toys`} className="hover:text-stone-950">Toys & Kids</Link>
+          <Link href={`/${locale}/category/grocery`} className="hover:text-stone-950">Grocery</Link>
+          <Link href={`/${locale}/category/sports`} className="hover:text-stone-950">Sports & Outdoor</Link>
+          <Link href={`/${locale}/deals`} className="ml-auto rounded-full bg-rose-100 px-3 py-1 text-[12px] font-semibold text-rose-700 hover:bg-rose-200">
             🔥 Today&rsquo;s deals
-          </span>
+          </Link>
         </nav>
       </div>
     </header>
