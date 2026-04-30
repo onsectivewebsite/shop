@@ -11,6 +11,7 @@ import { adsRouter } from './ads';
 import { returnsRouter } from './returns';
 import { organizationsRouter } from './organizations';
 import { reviewsRouter } from './reviews';
+import { qaRouter } from './qa';
 
 // Seller-side surface lives in apps/seller (REST routes at
 // /api/seller/* on seller.itsnottechy.cloud). The buyer app no longer
@@ -29,6 +30,7 @@ export const appRouter = router({
   returns: returnsRouter,
   organizations: organizationsRouter,
   reviews: reviewsRouter,
+  qa: qaRouter,
 });
 
 export type AppRouter = typeof appRouter;
