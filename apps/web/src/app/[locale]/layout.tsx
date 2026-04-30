@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, Fraunces } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
@@ -9,6 +9,7 @@ import { TRPCProvider } from '@/components/trpc-provider';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
 import { SentryInit } from '@/components/sentry-init';
 import { CookieBanner } from '@/components/cookie-banner';
+import { ServiceWorkerRegister } from '@/components/sw-register';
 import { locales, type Locale } from '@/i18n/config';
 import '../globals.css';
 
@@ -33,6 +34,26 @@ export const metadata: Metadata = {
   },
   description: 'Trusted sellers, fast delivery, the best of the world.',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
+  manifest: '/manifest.webmanifest',
+  // iOS doesn't read manifest.webmanifest for the "Add to Home Screen"
+  // experience — the apple-* hints below cover Safari + ipados.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Onsective',
+  },
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/icon.svg' }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#0f172a',
+  // Allow the user-agent to honour native pinch-zoom — important for
+  // accessibility on small product images and dense text content.
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export function generateStaticParams() {
@@ -56,6 +77,7 @@ export default async function LocaleLayout({
     <html lang={locale} className={`${inter.variable} ${display.variable}`}>
       <body>
         <SentryInit />
+        <ServiceWorkerRegister />
         <TRPCProvider>
           <NextIntlClientProvider messages={messages}>
             <ImpersonationBanner />

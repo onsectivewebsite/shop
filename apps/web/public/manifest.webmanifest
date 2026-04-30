@@ -1,0 +1,32 @@
+{
+  "name": "Onsective",
+  "short_name": "Onsective",
+  "description": "A worldwide marketplace — trusted sellers, fast delivery.",
+  "start_url": "/en",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0f172a",
+  "background_color": "#ffffff",
+  "lang": "en",
+  "categories": ["shopping"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Track an order", "url": "/en/track", "short_name": "Track" },
+    { "name": "Your orders", "url": "/en/account/orders", "short_name": "Orders" },
+    { "name": "Wishlist", "url": "/en/account/wishlist", "short_name": "Wishlist" }
+  ]
+}

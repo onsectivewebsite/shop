@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Maskable icons need a safe zone — content lives within the centre 80%
+       since the OS may clip the corners into a circle/squircle. We fill the
+       full canvas with the brand colour so the clipped frame still looks
+       intentional rather than padded. -->
+  <rect width="512" height="512" fill="#0f172a"/>
+  <text x="256" y="312" font-family="Georgia, serif" font-size="240" font-weight="500"
+        text-anchor="middle" fill="#ffffff">O</text>
+  <circle cx="368" cy="312" r="20" fill="#f59e0b"/>
+</svg>
