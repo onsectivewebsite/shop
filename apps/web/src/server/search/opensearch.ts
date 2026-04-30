@@ -173,6 +173,8 @@ export type SearchHit = {
   title: string;
   brand: string | null;
   images: string[];
+  ratingAvg: number;
+  ratingCount: number;
   priceAmount: number | null;
   currency: string | null;
   score: number;
@@ -204,7 +206,17 @@ export async function searchProducts(args: {
           filter: [{ term: { status: 'ACTIVE' } }],
         },
       },
-      _source: ['id', 'slug', 'title', 'brand', 'images', 'priceAmount', 'currency'],
+      _source: [
+        'id',
+        'slug',
+        'title',
+        'brand',
+        'images',
+        'ratingAvg',
+        'ratingCount',
+        'priceAmount',
+        'currency',
+      ],
     },
   });
 

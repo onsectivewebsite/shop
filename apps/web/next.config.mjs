@@ -1,6 +1,9 @@
 import createNextIntlPlugin from 'next-intl/plugin';
+import nextBundleAnalyzer from '@next/bundle-analyzer';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+// Set ANALYZE=true to emit .next/analyze/*.html on build.
+const withBundleAnalyzer = nextBundleAnalyzer({ enabled: process.env.ANALYZE === 'true' });
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -33,6 +36,10 @@ const nextConfig = {
     instrumentationHook: true,
   },
   images: {
+    // Serve AVIF when the browser accepts it (smaller than WebP at the same
+    // visual quality), fall back to WebP for older Safari, and finally to
+    // the originals via Next's optimizer.
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       // S3 + CloudFront for product images. Lock down by exact host in prod.
       { protocol: 'https', hostname: '*.amazonaws.com' },
@@ -62,4 +69,4 @@ const nextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+export default withBundleAnalyzer(withNextIntl(nextConfig));

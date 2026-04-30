@@ -73,10 +73,8 @@ async function runSearch(
         title: h.title,
         brand: h.brand,
         images: h.images,
-        // OpenSearch index doesn't carry rating yet — surface 0/0 so the card
-        // suppresses the rating line. Postgres path gets the real values.
-        ratingAvg: 0,
-        ratingCount: 0,
+        ratingAvg: h.ratingAvg,
+        ratingCount: h.ratingCount,
         variants:
           h.priceAmount !== null && h.currency !== null
             ? [{ priceAmount: h.priceAmount, mrpAmount: null, currency: h.currency }]
