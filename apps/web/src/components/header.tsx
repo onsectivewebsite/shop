@@ -5,6 +5,17 @@ import { getSession } from '@/server/auth/session';
 import { UserMenu } from './user-menu';
 import { MobileMenu } from './mobile-menu';
 
+const DEPARTMENTS = [
+  'electronics',
+  'fashion',
+  'beauty',
+  'home',
+  'books',
+  'toys',
+  'grocery',
+  'sports',
+] as const;
+
 export async function Header({ locale }: { locale: string }) {
   const t = await getTranslations('nav');
   const session = await getSession();
@@ -37,7 +48,7 @@ export async function Header({ locale }: { locale: string }) {
             <input
               type="search"
               name="q"
-              placeholder="Search for products, brands, categories…"
+              placeholder={t('search')}
               className="h-11 w-full rounded-full border border-stone-200 bg-stone-50 pl-11 pr-4 text-sm text-stone-900 placeholder:text-stone-400 transition-all focus:border-stone-950 focus:bg-white focus:outline-none focus:ring-4 focus:ring-stone-950/5"
             />
           </form>
@@ -47,11 +58,11 @@ export async function Header({ locale }: { locale: string }) {
               href="https://seller.itsnottechy.cloud"
               className="hidden h-10 items-center rounded-full px-4 text-sm font-medium text-stone-700 transition-colors hover:text-stone-950 sm:inline-flex"
             >
-              Sell on Onsective
+              {t('sellOnOnsective')}
             </a>
             <Link
               href={`/${locale}/account/wishlist`}
-              aria-label="Wishlist"
+              aria-label={t('wishlist')}
               className="hidden h-10 w-10 items-center justify-center rounded-full text-stone-700 transition-colors hover:bg-stone-100 sm:inline-flex"
             >
               <Heart size={18} strokeWidth={1.75} />
@@ -76,13 +87,13 @@ export async function Header({ locale }: { locale: string }) {
                   href={`/${locale}/login`}
                   className="hidden h-10 items-center rounded-full px-4 text-sm font-medium text-stone-700 transition-colors hover:text-stone-950 sm:inline-flex"
                 >
-                  Sign in
+                  {t('login')}
                 </Link>
                 <Link
                   href={`/${locale}/signup`}
                   className="hidden h-10 items-center rounded-full bg-stone-950 px-5 text-sm font-medium text-white transition-colors hover:bg-stone-800 sm:inline-flex"
                 >
-                  Join free
+                  {t('joinFree')}
                 </Link>
               </>
             )}
@@ -91,16 +102,20 @@ export async function Header({ locale }: { locale: string }) {
 
         {/* Department strip — desktop only */}
         <nav className="hidden h-10 items-center gap-6 overflow-x-auto pb-1 text-[13px] font-medium text-stone-700 md:flex">
-          <Link href={`/${locale}/category/electronics`} className="hover:text-stone-950">Electronics</Link>
-          <Link href={`/${locale}/category/fashion`} className="hover:text-stone-950">Fashion</Link>
-          <Link href={`/${locale}/category/beauty`} className="hover:text-stone-950">Beauty</Link>
-          <Link href={`/${locale}/category/home`} className="hover:text-stone-950">Home & Kitchen</Link>
-          <Link href={`/${locale}/category/books`} className="hover:text-stone-950">Books</Link>
-          <Link href={`/${locale}/category/toys`} className="hover:text-stone-950">Toys & Kids</Link>
-          <Link href={`/${locale}/category/grocery`} className="hover:text-stone-950">Grocery</Link>
-          <Link href={`/${locale}/category/sports`} className="hover:text-stone-950">Sports & Outdoor</Link>
-          <Link href={`/${locale}/deals`} className="ml-auto rounded-full bg-rose-100 px-3 py-1 text-[12px] font-semibold text-rose-700 hover:bg-rose-200">
-            🔥 Today&rsquo;s deals
+          {DEPARTMENTS.map((slug) => (
+            <Link
+              key={slug}
+              href={`/${locale}/category/${slug}`}
+              className="hover:text-stone-950"
+            >
+              {t(`categories.${slug}`)}
+            </Link>
+          ))}
+          <Link
+            href={`/${locale}/deals`}
+            className="ml-auto rounded-full bg-rose-100 px-3 py-1 text-[12px] font-semibold text-rose-700 hover:bg-rose-200"
+          >
+            🔥 {t('todaysDeals')}
           </Link>
         </nav>
       </div>

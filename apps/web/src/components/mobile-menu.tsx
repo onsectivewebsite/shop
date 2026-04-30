@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Menu, X, Search, Heart, Package, Store, LogIn, UserPlus, Flame } from 'lucide-react';
 
 type Props = {
@@ -11,26 +12,20 @@ type Props = {
 };
 
 const DEPARTMENTS = [
-  { slug: 'electronics', label: 'Electronics' },
-  { slug: 'fashion', label: 'Fashion' },
-  { slug: 'beauty', label: 'Beauty' },
-  { slug: 'home', label: 'Home & Kitchen' },
-  { slug: 'books', label: 'Books' },
-  { slug: 'toys', label: 'Toys & Kids' },
-  { slug: 'grocery', label: 'Grocery' },
-  { slug: 'sports', label: 'Sports & Outdoor' },
-];
-
-const DISCOVER = [
-  { href: '/categories', label: 'All categories' },
-  { href: '/deals', label: "Today's deals", accent: true },
-  { href: '/best-sellers', label: 'Best sellers' },
-  { href: '/trending', label: 'Trending now' },
-];
+  'electronics',
+  'fashion',
+  'beauty',
+  'home',
+  'books',
+  'toys',
+  'grocery',
+  'sports',
+] as const;
 
 export function MobileMenu({ locale, isAuthed }: Props) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const t = useTranslations('nav');
 
   useEffect(() => {
     setOpen(false);
@@ -52,12 +47,19 @@ export function MobileMenu({ locale, isAuthed }: Props) {
 
   const localePath = (p: string) => `/${locale}${p}`;
 
+  const discover = [
+    { href: '/categories', label: t('allCategories') },
+    { href: '/deals', label: t('todaysDeals'), accent: true },
+    { href: '/best-sellers', label: t('bestSellers') },
+    { href: '/trending', label: t('trending') },
+  ];
+
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Open menu"
+        aria-label={t('openMenu')}
         className="inline-flex h-10 w-10 items-center justify-center rounded-full text-stone-700 transition-colors hover:bg-stone-100 md:hidden"
       >
         <Menu size={20} strokeWidth={1.75} />
@@ -67,7 +69,7 @@ export function MobileMenu({ locale, isAuthed }: Props) {
         <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
           <button
             type="button"
-            aria-label="Close menu"
+            aria-label={t('closeMenu')}
             onClick={() => setOpen(false)}
             className="absolute inset-0 bg-stone-950/40 backdrop-blur-sm"
           />
@@ -85,7 +87,7 @@ export function MobileMenu({ locale, isAuthed }: Props) {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="Close menu"
+                aria-label={t('closeMenu')}
                 className="inline-flex h-9 w-9 items-center justify-center rounded-full text-stone-700 transition-colors hover:bg-stone-100"
               >
                 <X size={18} strokeWidth={1.75} />
@@ -103,7 +105,7 @@ export function MobileMenu({ locale, isAuthed }: Props) {
                 <input
                   type="search"
                   name="q"
-                  placeholder="Search products, brands…"
+                  placeholder={t('searchShort')}
                   className="h-11 w-full rounded-full border border-stone-200 bg-stone-50 pl-11 pr-4 text-sm text-stone-900 placeholder:text-stone-400 focus:border-stone-950 focus:bg-white focus:outline-none focus:ring-4 focus:ring-stone-950/5"
                 />
               </div>
@@ -111,9 +113,9 @@ export function MobileMenu({ locale, isAuthed }: Props) {
 
             <div className="px-2 pb-1 pt-2">
               <p className="px-3 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                Discover
+                {t('discover')}
               </p>
-              {DISCOVER.map((d) => (
+              {discover.map((d) => (
                 <Link
                   key={d.href}
                   href={localePath(d.href)}
@@ -127,22 +129,22 @@ export function MobileMenu({ locale, isAuthed }: Props) {
 
             <div className="px-2 pb-1 pt-2">
               <p className="px-3 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                Shop by category
+                {t('shopByCategory')}
               </p>
-              {DEPARTMENTS.map((d) => (
+              {DEPARTMENTS.map((slug) => (
                 <Link
-                  key={d.slug}
-                  href={localePath(`/category/${d.slug}`)}
+                  key={slug}
+                  href={localePath(`/category/${slug}`)}
                   className="block rounded-xl px-3 py-2.5 text-[15px] text-stone-800 transition-colors hover:bg-stone-50"
                 >
-                  {d.label}
+                  {t(`categories.${slug}`)}
                 </Link>
               ))}
             </div>
 
             <div className="px-2 pb-2 pt-2">
               <p className="px-3 pb-2 pt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                Your account
+                {t('yourAccount')}
               </p>
               {isAuthed ? (
                 <>
@@ -151,37 +153,35 @@ export function MobileMenu({ locale, isAuthed }: Props) {
                     className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] text-stone-800 transition-colors hover:bg-stone-50"
                   >
                     <Package size={17} strokeWidth={1.75} className="text-stone-500" />
-                    Orders
+                    {t('orders')}
                   </Link>
                   <Link
                     href={localePath('/account/wishlist')}
                     className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] text-stone-800 transition-colors hover:bg-stone-50"
                   >
                     <Heart size={17} strokeWidth={1.75} className="text-stone-500" />
-                    Wishlist
+                    {t('wishlist')}
                   </Link>
                   <Link
                     href={localePath('/track')}
                     className="block rounded-xl px-3 py-2.5 text-[15px] text-stone-800 transition-colors hover:bg-stone-50"
                   >
-                    Track an order
+                    {t('trackAnOrder')}
                   </Link>
                   <Link
                     href={localePath('/account')}
                     className="block rounded-xl px-3 py-2.5 text-[15px] text-stone-800 transition-colors hover:bg-stone-50"
                   >
-                    Account settings
+                    {t('accountSettings')}
                   </Link>
                 </>
               ) : (
-                <>
-                  <Link
-                    href={localePath('/track')}
-                    className="block rounded-xl px-3 py-2.5 text-[15px] text-stone-800 transition-colors hover:bg-stone-50"
-                  >
-                    Track an order
-                  </Link>
-                </>
+                <Link
+                  href={localePath('/track')}
+                  className="block rounded-xl px-3 py-2.5 text-[15px] text-stone-800 transition-colors hover:bg-stone-50"
+                >
+                  {t('trackAnOrder')}
+                </Link>
               )}
             </div>
 
@@ -192,13 +192,13 @@ export function MobileMenu({ locale, isAuthed }: Props) {
                     href={localePath('/login')}
                     className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full border border-stone-300 bg-white text-sm font-medium text-stone-900"
                   >
-                    <LogIn size={15} strokeWidth={1.75} /> Sign in
+                    <LogIn size={15} strokeWidth={1.75} /> {t('login')}
                   </Link>
                   <Link
                     href={localePath('/signup')}
                     className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full bg-stone-950 text-sm font-medium text-white"
                   >
-                    <UserPlus size={15} strokeWidth={1.75} /> Join free
+                    <UserPlus size={15} strokeWidth={1.75} /> {t('joinFree')}
                   </Link>
                 </div>
               )}
@@ -210,9 +210,9 @@ export function MobileMenu({ locale, isAuthed }: Props) {
                   <Store size={16} strokeWidth={1.75} />
                 </span>
                 <span className="flex flex-col leading-tight">
-                  <span>Sell on Onsective</span>
+                  <span>{t('sellOnOnsective')}</span>
                   <span className="text-[11px] font-normal text-stone-500">
-                    Reach buyers worldwide
+                    {t('sellTagline')}
                   </span>
                 </span>
               </a>
