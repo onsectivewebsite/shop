@@ -1,6 +1,12 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Star } from 'lucide-react';
 import { formatMoney } from '@/lib/utils';
+
+// Roughly matches a 6-col grid at desktop, 3-col at tablet, 2-col at mobile.
+// Tells the optimizer how big the rendered image actually is so it doesn't
+// pick the largest variant for every viewport.
+const CARD_SIZES = '(min-width: 1024px) 16vw, (min-width: 768px) 33vw, 50vw';
 
 type Props = {
   locale: string;
@@ -29,11 +35,12 @@ export function ProductCard({ locale, product }: Props) {
     >
       <div className="relative aspect-square overflow-hidden bg-slate-50">
         {cover ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
+          <Image
             src={cover}
             alt={product.title}
-            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+            fill
+            sizes={CARD_SIZES}
+            className="object-cover transition-transform group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-slate-400">

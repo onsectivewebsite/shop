@@ -1,5 +1,8 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Star, Trophy } from 'lucide-react';
+
+const CARD_SIZES = '(min-width: 1024px) 16vw, (min-width: 768px) 33vw, 50vw';
 import { prisma } from '@/server/db';
 import { pageReadLimit } from '@/server/page-rate-limit';
 import { RateLimited } from '@/components/rate-limited';
@@ -140,11 +143,12 @@ export default async function BestSellersPage({
                   >
                     <div className="relative aspect-square overflow-hidden bg-stone-100">
                       {cover && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        <Image
                           src={cover}
                           alt=""
-                          className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                          fill
+                          sizes={CARD_SIZES}
+                          className="object-cover transition-transform group-hover:scale-105"
                         />
                       )}
                       <span

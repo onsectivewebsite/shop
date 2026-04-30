@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Button } from '@onsective/ui';
 import { trpc } from '@/lib/trpc';
 
@@ -118,13 +119,18 @@ export function ReviewsSection({ productId }: { productId: string }) {
             {r.images.length > 0 && (
               <ul className="mt-3 flex flex-wrap gap-2">
                 {r.images.map((src) => (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
+                  <li
                     key={src}
-                    src={src}
-                    alt=""
-                    className="h-20 w-20 rounded object-cover"
-                  />
+                    className="relative h-20 w-20 overflow-hidden rounded"
+                  >
+                    <Image
+                      src={src}
+                      alt=""
+                      fill
+                      sizes="80px"
+                      className="object-cover"
+                    />
+                  </li>
                 ))}
               </ul>
             )}

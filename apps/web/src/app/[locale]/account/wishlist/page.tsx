@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowLeft, Heart, Star } from 'lucide-react';
+
+const CARD_SIZES = '(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw';
 import { prisma } from '@/server/db';
 import { getSession } from '@/server/auth/session';
 import { WishlistHeart } from '@/components/wishlist-heart';
@@ -105,11 +108,12 @@ export default async function WishlistPage({ params }: { params: { locale: strin
                 <Link href={`/${params.locale}/product/${p.slug}`} className="block">
                   <div className="relative aspect-square overflow-hidden bg-stone-100">
                     {cover && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Image
                         src={cover}
                         alt=""
-                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                        fill
+                        sizes={CARD_SIZES}
+                        className="object-cover transition-transform group-hover:scale-105"
                       />
                     )}
                     <div className="absolute right-2 top-2">

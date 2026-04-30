@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
+import Image from 'next/image';
 import { Badge, Card, CardContent } from '@onsective/ui';
 import { getSession } from '@/server/auth';
 import { prisma } from '@/server/db';
@@ -66,12 +67,15 @@ export default async function BuyerOrderDetailPage({
                 return (
                   <li key={item.id} className="flex flex-col gap-3 py-4 sm:flex-row">
                     {cover ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={cover}
-                        alt=""
-                        className="h-20 w-20 flex-none rounded-md border border-slate-100 object-cover"
-                      />
+                      <div className="relative h-20 w-20 flex-none overflow-hidden rounded-md border border-slate-100">
+                        <Image
+                          src={cover}
+                          alt=""
+                          fill
+                          sizes="80px"
+                          className="object-cover"
+                        />
+                      </div>
                     ) : (
                       <div className="h-20 w-20 flex-none rounded-md bg-slate-100" />
                     )}
