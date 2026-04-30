@@ -2,13 +2,15 @@ import { Card, CardContent } from '@onsective/ui';
 import { prisma } from '@onsective/db';
 
 async function getStats() {
-  const [pendingSellers, pendingProducts, openDisputes, openTickets] = await Promise.all([
+  const [pendingSellers, pendingProducts, openDisputes, openTickets, openReturns, last24h] = await Promise.all([
     prisma.seller.count({ where: { status: { in: ['PENDING_KYC', 'KYC_SUBMITTED'] } } }),
     prisma.product.count({ where: { status: 'PENDING_REVIEW' } }),
     Promise.resolve(0), // disputes table populated Phase 2
     prisma.supportTicket.count({ where: { status: 'OPEN' } }).catch(() => 0),
+    prisma.return.count({ where: { status: { in: ['REQUESTED', 'APPROVED', 'RECEIVED'] } } }).catch(() => 0),
+    prisma.auditLog.count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }).catch(() => 0),
   ]);
-  return { pendingSellers, pendingProducts, openDisputes, openTickets };
+  return { pendingSellers, pendingProducts, openDisputes, openTickets, openReturns, last24h };
 }
 
 export default async function ConsoleDashboard() {
@@ -22,26 +24,20 @@ export default async function ConsoleDashboard() {
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <QueueCard label="Pending KYC" value={stats.pendingSellers} href="/dashboard/sellers" />
         <QueueCard label="Products to review" value={stats.pendingProducts} href="/dashboard/products" />
-        <QueueCard label="Open disputes" value={stats.openDisputes} href="/dashboard/disputes" />
-        <QueueCard label="Open tickets" value={stats.openTickets} href="/dashboard" />
+        <QueueCard label="Open returns" value={stats.openReturns} href="/dashboard/returns" />
+        <QueueCard label="Open tickets" value={stats.openTickets} href="/dashboard/tickets" />
       </div>
 
-      <Card className="mt-12">
-        <CardContent className="p-6">
-          <p className="text-sm font-semibold">⚙ What this console will do (full spec)</p>
-          <ul className="mt-3 space-y-1 text-sm text-slate-600">
-            <li>• Cmd-K palette for universal search + actions</li>
-            <li>• Inbox + ticket workspace with internal notes</li>
-            <li>• Order workspace (cancel pre-ship, refund &lt; $500 PM-direct)</li>
-            <li>• User workspace (search, view, send password reset)</li>
-            <li>• Seller KYC review screen</li>
-            <li>• 4-eyes approval flow</li>
-            <li>• Audit log on every action</li>
-            <li>• 2FA enforcement + IP allowlist</li>
-          </ul>
-          <p className="mt-3 text-xs text-slate-500">See PLATFORM_MANAGER.md for the full spec.</p>
-        </CardContent>
-      </Card>
+      <h2 className="mt-12 text-sm font-semibold text-slate-700">Quick links</h2>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Pill href="/dashboard/users">Users</Pill>
+        <Pill href="/dashboard/sellers">Sellers</Pill>
+        <Pill href="/dashboard/orders">Orders</Pill>
+        <Pill href="/dashboard/orgs">Organizations</Pill>
+        <Pill href="/dashboard/ads">Ads moderation</Pill>
+        <Pill href="/dashboard/approvals">4-eyes approvals</Pill>
+        <Pill href="/dashboard/audit">Audit log ({stats.last24h.toLocaleString()} last 24h)</Pill>
+      </div>
     </div>
   );
 }
@@ -54,6 +50,17 @@ function QueueCard({ label, value, href }: { label: string; value: number; href:
     >
       <p className="text-sm text-slate-500">{label}</p>
       <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{value}</p>
+    </a>
+  );
+}
+
+function Pill({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      className="inline-flex items-center rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-500 hover:text-slate-900"
+    >
+      {children}
     </a>
   );
 }
