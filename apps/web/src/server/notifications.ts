@@ -195,6 +195,48 @@ export async function sendAccountDeletionEmail(to: string, code: string): Promis
   });
 }
 
+export async function sendReviewPromptEmail(
+  to: string,
+  meta: { items: Array<{ orderNumber: string; productTitle: string; productSlug: string }> },
+): Promise<void> {
+  if (meta.items.length === 0) return;
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://itsnottechy.cloud';
+
+  const linkFor = (slug: string) => `${base}/product/${slug}#reviews`;
+
+  const textBody =
+    `How was your recent purchase?\n\n` +
+    meta.items
+      .map((it) => `· ${it.productTitle} (order ${it.orderNumber}): ${linkFor(it.productSlug)}`)
+      .join('\n') +
+    `\n\nLeaving a review takes 30 seconds and helps other shoppers.`;
+
+  const htmlBody =
+    `<p>You recently received the following${meta.items.length === 1 ? ' item' : ' items'} from Onsective. Mind sharing how it went?</p>
+     <ul style="font-size: 14px; color: #334155; padding-left: 18px;">
+       ${meta.items
+         .map(
+           (it) =>
+             `<li style="margin-bottom: 8px;">
+                <a href="${linkFor(it.productSlug)}" style="color:#0f172a;font-weight:600;">${it.productTitle}</a>
+                <span style="color:#94a3b8;font-size:12px;"> · order ${it.orderNumber}</span>
+              </li>`,
+         )
+         .join('')}
+     </ul>
+     <p style="font-size: 13px; color: #64748b;">Reviews take 30 seconds and help other shoppers find what they need. Thanks for being part of Onsective.</p>`;
+
+  await send({
+    to,
+    subject:
+      meta.items.length === 1
+        ? `How was your ${meta.items[0]!.productTitle}?`
+        : `How were your recent purchases?`,
+    text: textBody,
+    html: shell('Tell us how it went', htmlBody),
+  });
+}
+
 export async function sendDataExportEmail(
   to: string,
   meta: { url: string; expiresAt: Date; bytes: number },

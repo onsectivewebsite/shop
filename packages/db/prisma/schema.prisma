@@ -671,6 +671,11 @@ model OrderItem {
   // Status (per item — supports partial fulfillment)
   status          OrderStatus @default(CREATED)
 
+  // Idempotency stamp for the daily review-prompt email cron. Set when we
+  // email the buyer asking for a review on this delivered item; nullable so
+  // a backfill or schema migration doesn't accidentally re-prompt anyone.
+  reviewPromptSentAt DateTime?
+
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 

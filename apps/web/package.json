@@ -16,6 +16,7 @@
     "worker:data-export": "tsx scripts/worker-data-export.ts",
     "cron:payouts": "tsx scripts/cron-payouts.ts",
     "cron:ads-reset": "tsx scripts/cron-ads-reset.ts",
+    "cron:review-prompts": "tsx scripts/cron-review-prompts.ts",
     "reindex:search": "tsx scripts/reindex-search.ts"
   },
   "dependencies": {
