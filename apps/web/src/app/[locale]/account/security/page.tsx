@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '@/server/auth';
 import { RecoveryCodesManager } from '@/components/account/recovery-codes-manager';
+import { Sms2FAManager } from '@/components/account/sms-2fa-manager';
 
 export const metadata = { title: 'Security' };
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,7 @@ export default async function SecurityPage({ params }: { params: { locale: strin
           </p>
         </header>
         <RecoveryCodesManager />
+        <Sms2FAManager />
       </div>
     </div>
   );

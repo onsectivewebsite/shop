@@ -24,10 +24,17 @@ import {
   sendTwoFactorEmail,
   sendLockoutEmail,
   sendNewDeviceLoginEmail,
+  sendOtpSms,
+  sendTwoFactorSms,
 } from '../notifications';
 
 const emailSchema = z.string().email().toLowerCase().trim();
 const passwordSchema = z.string().min(10).max(128);
+// E.164: leading +, 8-15 digits. Twilio rejects anything else.
+const phoneSchema = z
+  .string()
+  .trim()
+  .regex(/^\+[1-9]\d{7,14}$/, 'Phone must be in E.164 format (e.g. +14155552671)');
 
 const FAILED_LOGIN_LIMIT = 5;
 const LOCKOUT_MINUTES = 30;
@@ -163,7 +170,10 @@ export const authRouter = router({
         data: { failedLoginAttempts: 0, lockedUntil: null },
       });
 
-      // 4. Two-factor email step
+      // 4. Two-factor step. The destination of record stays email (so the
+      // verify endpoint matches by email regardless of which channel the
+      // user reads the code from). When SMS is enrolled, the same code
+      // also goes to their verified phone number.
       if (user.twoFactorEmail) {
         const { code } = await issueOtp({
           destination: user.email,
@@ -171,7 +181,10 @@ export const authRouter = router({
           purpose: 'login_2fa',
           userId: user.id,
         });
-        await safeSend('2fa', () => sendTwoFactorEmail(user.email, code));
+        await safeSend('2fa email', () => sendTwoFactorEmail(user.email, code));
+        if (user.twoFactorSms && user.phone && user.phoneVerified) {
+          await safeSend('2fa sms', () => sendTwoFactorSms(user.phone!, code));
+        }
         return { requires2FA: true, email: user.email };
       }
 
@@ -253,6 +266,94 @@ export const authRouter = router({
     regenerate: protectedProcedure.mutation(async ({ ctx }) => {
       const codes = await regenerateRecoveryCodes(ctx.user!.id);
       return { codes };
+    }),
+  }),
+
+  smsOtp: router({
+    status: protectedProcedure.query(async ({ ctx }) => {
+      const u = await prisma.user.findUnique({
+        where: { id: ctx.user!.id },
+        select: { phone: true, phoneVerified: true, twoFactorSms: true },
+      });
+      if (!u) throw new TRPCError({ code: 'NOT_FOUND' });
+      // Mask everything except the last 4 digits in any UI exposure.
+      const masked = u.phone ? u.phone.replace(/.(?=.{4})/g, '•') : null;
+      return {
+        phone: masked,
+        verified: !!u.phoneVerified,
+        enabled: u.twoFactorSms,
+      };
+    }),
+
+    requestEnrollment: protectedProcedure
+      .use(authRateLimit)
+      .input(z.object({ phone: phoneSchema }))
+      .mutation(async ({ ctx, input }) => {
+        // Reject if the number is already attached (verified) to a different
+        // user — phone is unique on User and we don't want a silent collision.
+        const collision = await prisma.user.findFirst({
+          where: {
+            phone: input.phone,
+            phoneVerified: { not: null },
+            id: { not: ctx.user!.id },
+          },
+          select: { id: true },
+        });
+        if (collision) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'This phone is already in use on another account.',
+          });
+        }
+        // Stash the candidate phone (unverified) so verify can match it. If
+        // verification doesn't complete, the phone sits as "unverified" until
+        // a successful enrollment overwrites it.
+        await prisma.user.update({
+          where: { id: ctx.user!.id },
+          data: { phone: input.phone, phoneVerified: null },
+        });
+        const { code } = await issueOtp({
+          destination: input.phone,
+          channel: 'sms',
+          purpose: 'verify',
+          userId: ctx.user!.id,
+        });
+        await sendOtpSms(input.phone, code);
+        return { sent: true };
+      }),
+
+    confirmEnrollment: protectedProcedure
+      .use(authRateLimit)
+      .input(z.object({ phone: phoneSchema, code: z.string().length(6) }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await verifyOtp({
+          destination: input.phone,
+          purpose: 'verify',
+          code: input.code,
+        });
+        if (!result.valid || result.userId !== ctx.user!.id) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid or expired code.' });
+        }
+        await prisma.user.update({
+          where: { id: ctx.user!.id },
+          data: {
+            phone: input.phone,
+            phoneVerified: new Date(),
+            twoFactorSms: true,
+          },
+        });
+        return { ok: true };
+      }),
+
+    disable: protectedProcedure.mutation(async ({ ctx }) => {
+      // Keep the phone on file so re-enabling is one click. Drop the
+      // verified flag so any account-recovery path that relies on a
+      // verified phone has to re-prove it.
+      await prisma.user.update({
+        where: { id: ctx.user!.id },
+        data: { twoFactorSms: false },
+      });
+      return { ok: true };
     }),
   }),
 

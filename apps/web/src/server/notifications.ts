@@ -117,8 +117,43 @@ export async function sendNewDeviceLoginEmail(
   });
 }
 
+// Twilio is loaded lazily so dev runs without creds don't pull the SDK into
+// the cold-path bundle. Cached after first send.
+type TwilioLike = {
+  messages: { create(opts: { to: string; from: string; body: string }): Promise<unknown> };
+};
+let twilioCached: TwilioLike | null = null;
+
+async function getTwilio(): Promise<TwilioLike | null> {
+  if (twilioCached) return twilioCached;
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return null;
+  const { default: Twilio } = await import('twilio');
+  twilioCached = Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+  return twilioCached;
+}
+
+async function sendSms(to: string, body: string): Promise<void> {
+  const client = await getTwilio();
+  const from = process.env.TWILIO_FROM;
+  if (!client || !from) {
+    // No creds: dev path logs to console; prod path must not silently succeed.
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Twilio is not configured (TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN/TWILIO_FROM)');
+    }
+    // eslint-disable-next-line no-console
+    console.log(`[sms→${to}] ${body}`);
+    return;
+  }
+  await client.messages.create({ to, from, body });
+}
+
 export async function sendOtpSms(to: string, code: string): Promise<void> {
-  // TODO Phase 1: Twilio (or MSG91 for IN)
-  // eslint-disable-next-line no-console
-  console.log(`[sms→${to}] Your Onsective code is ${code} (expires in 10 min).`);
+  await sendSms(to, `Your Onsective code is ${code}. It expires in 10 minutes.`);
+}
+
+export async function sendTwoFactorSms(to: string, code: string): Promise<void> {
+  await sendSms(
+    to,
+    `Onsective sign-in code: ${code} (10 min). If this wasn't you, change your password.`,
+  );
 }

@@ -53,6 +53,7 @@ model User {
   lastLoginAt    DateTime?
   // Security
   twoFactorEmail Boolean    @default(true)  // require email OTP step on every password login
+  twoFactorSms   Boolean    @default(false) // also dispatch the same 2FA code via SMS to phoneVerified number
   failedLoginAttempts Int   @default(0)
   lockedUntil    DateTime?  // soft lock after repeated failures
   lastLoginIp    String?
