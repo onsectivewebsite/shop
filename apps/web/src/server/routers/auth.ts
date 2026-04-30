@@ -30,6 +30,7 @@ import {
   sendNewDeviceLoginEmail,
   sendOtpSms,
   sendTwoFactorSms,
+  sendAccountDeletionEmail,
 } from '../notifications';
 
 const emailSchema = z.string().email().toLowerCase().trim();
@@ -271,6 +272,119 @@ export const authRouter = router({
       const codes = await regenerateRecoveryCodes(ctx.user!.id);
       return { codes };
     }),
+  }),
+
+  deleteAccount: router({
+    // Tells the UI whether the user can proceed and, if not, why. Active
+    // orders block deletion because the buyer can still receive shipments,
+    // file returns, or chargeback. Once everything has reached a terminal
+    // state we can scrub PII and keep only tax-relevant rows.
+    eligibility: protectedProcedure.query(async ({ ctx }) => {
+      const TERMINAL = ['COMPLETED', 'CANCELLED', 'REFUNDED', 'FAILED'] as const;
+      const blocking = await prisma.order.count({
+        where: {
+          buyerId: ctx.user!.id,
+          status: { notIn: [...TERMINAL] },
+        },
+      });
+      const openReturns = await prisma.return.count({
+        where: {
+          buyerId: ctx.user!.id,
+          status: { notIn: ['REFUNDED', 'REJECTED', 'CANCELLED'] },
+        },
+      });
+      return {
+        canDelete: blocking === 0 && openReturns === 0,
+        blockingOrders: blocking,
+        openReturns,
+      };
+    }),
+
+    request: protectedProcedure.use(authRateLimit).mutation(async ({ ctx }) => {
+      const { code } = await issueOtp({
+        destination: ctx.user!.email,
+        channel: 'email',
+        purpose: 'account_delete',
+        userId: ctx.user!.id,
+      });
+      await safeSend('account-delete', () =>
+        sendAccountDeletionEmail(ctx.user!.email, code),
+      );
+      return { sent: true };
+    }),
+
+    confirm: protectedProcedure
+      .use(authRateLimit)
+      .input(z.object({ code: z.string().length(6) }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await verifyOtp({
+          destination: ctx.user!.email,
+          purpose: 'account_delete',
+          code: input.code,
+        });
+        if (!result.valid || result.userId !== ctx.user!.id) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Invalid or expired confirmation code.',
+          });
+        }
+
+        // Re-check eligibility right before the destructive write — a new
+        // order could have landed between request and confirm.
+        const TERMINAL = ['COMPLETED', 'CANCELLED', 'REFUNDED', 'FAILED'] as const;
+        const blocking = await prisma.order.count({
+          where: { buyerId: ctx.user!.id, status: { notIn: [...TERMINAL] } },
+        });
+        if (blocking > 0) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'You have orders in progress. Wait for them to finish before deleting.',
+          });
+        }
+
+        const userId = ctx.user!.id;
+        const scrubEmail = `deleted+${userId}@onsective.invalid`;
+
+        await prisma.$transaction([
+          // Drop credentials + auth surface so nothing can sign back in.
+          prisma.passkey.deleteMany({ where: { userId } }),
+          prisma.recoveryCode.deleteMany({ where: { userId } }),
+          prisma.otp.deleteMany({ where: { userId } }),
+          prisma.session.deleteMany({ where: { userId } }),
+          prisma.webAuthnChallenge.deleteMany({ where: { userId } }),
+          // Forget addresses (orders snapshot the address rows by relation,
+          // and Address.userId is nullable with onDelete: SetNull, so existing
+          // orders keep their fixed shipping/billing addresses by reference).
+          prisma.address.updateMany({
+            where: { userId },
+            data: { userId: null },
+          }),
+          // Scrub PII on the User row itself but keep the row so existing
+          // FKs (Order.buyerId, Review.buyerId, Return.buyerId) still resolve.
+          prisma.user.update({
+            where: { id: userId },
+            data: {
+              status: 'DELETED',
+              deletedAt: new Date(),
+              email: scrubEmail,
+              fullName: null,
+              phone: null,
+              phoneVerified: null,
+              passwordHash: null,
+              twoFactorSms: false,
+              twoFactorEmail: false,
+              lastLoginIp: null,
+              lastLoginUserAgent: null,
+            },
+          }),
+        ]);
+
+        // Belt + braces: clear the cookie so the browser doesn't attempt
+        // requests with the now-revoked session.
+        await destroySession();
+
+        return { ok: true };
+      }),
   }),
 
   dataExport: router({

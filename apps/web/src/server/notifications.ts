@@ -151,6 +151,22 @@ export async function sendOtpSms(to: string, code: string): Promise<void> {
   await sendSms(to, `Your Onsective code is ${code}. It expires in 10 minutes.`);
 }
 
+export async function sendAccountDeletionEmail(to: string, code: string): Promise<void> {
+  await send({
+    to,
+    subject: 'Confirm your Onsective account deletion',
+    text: `Your account-deletion confirmation code is ${code}. Expires in 10 minutes. If you didn't request this, change your password immediately.`,
+    html: shell(
+      'Confirm account deletion',
+      `<p>You asked to delete your Onsective account. Enter this code on the deletion screen to finish:</p>
+       ${codeBlock(code)}
+       <p style="font-size: 13px; color: #64748b;">Expires in 10 minutes.</p>
+       <p style="font-size: 13px; color: #64748b;">Once confirmed, your profile, addresses, payment methods, recovery codes, passkeys, and saved items are permanently scrubbed. Past order history is retained in compliance with tax and consumer-protection law, but no longer carries personal data.</p>
+       <p style="font-size: 13px; color: #64748b;"><strong>If you didn't request this, change your password immediately.</strong></p>`,
+    ),
+  });
+}
+
 export async function sendDataExportEmail(
   to: string,
   meta: { url: string; expiresAt: Date; bytes: number },
