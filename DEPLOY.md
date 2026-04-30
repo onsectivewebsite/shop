@@ -134,6 +134,20 @@ Demo sellers carry `isDemo: true`. The hourly payouts sweep skips them, so they 
 
 Add a webhook at `https://itsnottechy.cloud/api/webhooks/easypost`. Signing key goes in `EASYPOST_WEBHOOK_SECRET`.
 
+## 8.1 Health endpoints (Phase 5)
+
+Each app exposes `GET /api/health` for monitoring:
+
+| URL | Behind allowlist? |
+| --- | --- |
+| `https://itsnottechy.cloud/api/health` | no — public |
+| `https://seller.itsnottechy.cloud/api/health` | no — public |
+| `https://console.itsnottechy.cloud/api/health` | yes — `CONSOLE_IP_ALLOWLIST` applies |
+
+Probes Postgres + Redis in parallel with 1.5s timeouts. Returns 200 + `{ ok: true, postgres: {...}, redis: {...} }` when healthy, 503 otherwise. Bypasses CDN cache via `Cache-Control: no-store`.
+
+**Wire UptimeRobot:** add the buyer + seller URLs as HTTPS monitors at 1-minute intervals. For the console, add UptimeRobot's [public IP list](https://uptimerobot.com/inc/files/ips/IPv4andIPv6.txt) to `CONSOLE_IP_ALLOWLIST`.
+
 ## 9. First deploy checklist
 
 - [ ] All env vars set in Secrets Manager
@@ -147,6 +161,7 @@ Add a webhook at `https://itsnottechy.cloud/api/webhooks/easypost`. Signing key 
 - [ ] Workers running (logs show "started, listening for jobs")
 - [ ] Payouts cron registered (`pnpm cron:payouts` exited 0)
 - [ ] Sentry receiving its first event from each runtime
+- [ ] `/api/health` returns 200 on web, seller, and console
 - [ ] OpenSearch index created (if enabled) via `pnpm reindex:search`
 
 ## 10. Rollback
