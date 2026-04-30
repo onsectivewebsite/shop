@@ -135,7 +135,12 @@ export default async function SellerDashboard() {
                 title="Orders"
                 sub={openOrdersCount > 0 ? `${openOrdersCount} to ship` : 'No open orders'}
               />
-              <SoonTile icon={Wallet} title="Payouts ledger" />
+              <ActionTile
+                href="/dashboard/payouts"
+                icon={Wallet}
+                title="Payouts"
+                sub={seller.stripePayoutsEnabled ? 'View ledger' : 'Connect Stripe'}
+              />
               <SoonTile icon={BarChart3} title="Analytics" />
             </div>
           </div>
