@@ -148,6 +148,39 @@ Probes Postgres + Redis in parallel with 1.5s timeouts. Returns 200 + `{ ok: tru
 
 **Wire UptimeRobot:** add the buyer + seller URLs as HTTPS monitors at 1-minute intervals. For the console, add UptimeRobot's [public IP list](https://uptimerobot.com/inc/files/ips/IPv4andIPv6.txt) to `CONSOLE_IP_ALLOWLIST`.
 
+## 8.2 Postgres backups (Phase 5)
+
+Two scripts in `scripts/`:
+
+| Script | Purpose |
+| --- | --- |
+| `pg-backup.sh` | streams `pg_dump | gzip` to S3 — no on-disk intermediate |
+| `pg-restore.sh` | downloads + restores into a **non-prod** DB and runs a smoke query (drill) |
+
+### Daily cron (run as root on the VPS)
+
+```
+# /etc/cron.d/onsective-backups
+0 3 * * *  itsnottechy  cd /home/itsnottechy/htdocs/itsnottechy.cloud && \
+            DATABASE_URL="$(grep ^DATABASE_URL .env | cut -d= -f2-)" \
+            BACKUP_S3_URI=s3://onsective-backups/pg \
+            BACKUP_LABEL=prod \
+            AWS_REGION=us-east-1 \
+            ./scripts/pg-backup.sh >> /var/log/onsective/pg-backup.log 2>&1
+```
+
+Sets retention via an S3 lifecycle rule on the bucket — far more reliable than date-math in the script. Suggested rule: transition to STANDARD_IA at 30d, expire at 365d.
+
+### Monthly restore drill (manual)
+
+```bash
+RESTORE_DATABASE_URL=postgres://postgres:pw@localhost/onsective_restore \
+BACKUP_S3_URI=s3://onsective-backups/pg \
+./scripts/pg-restore.sh 2026-04-30
+```
+
+The script refuses to write into a database whose name ends in `prod` or matches `onsective`. Pass an explicit throwaway DB. Pass a date (`YYYY-MM-DD`) to pick the most recent backup from that day, or a full `s3://…` URI for a specific dump. Smoke query checks that `Product` has rows and `Category` has ≥8 entries.
+
 ## 9. First deploy checklist
 
 - [ ] All env vars set in Secrets Manager
@@ -162,6 +195,8 @@ Probes Postgres + Redis in parallel with 1.5s timeouts. Returns 200 + `{ ok: tru
 - [ ] Payouts cron registered (`pnpm cron:payouts` exited 0)
 - [ ] Sentry receiving its first event from each runtime
 - [ ] `/api/health` returns 200 on web, seller, and console
+- [ ] `pg-backup.sh` cron entry installed and one manual run produced an S3 object
+- [ ] `pg-restore.sh` smoke drill passed against a throwaway DB
 - [ ] OpenSearch index created (if enabled) via `pnpm reindex:search`
 
 ## 10. Rollback
