@@ -1,6 +1,6 @@
 import type { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch';
 import { getSession } from './auth';
-import { newRequestId } from './observability';
+import { newRequestId, tagRequest } from './observability';
 
 export async function createTRPCContext(opts: FetchCreateContextFnOptions) {
   const session = await getSession();
@@ -9,6 +9,7 @@ export async function createTRPCContext(opts: FetchCreateContextFnOptions) {
   // out on the response so the caller can correlate logs.
   const incoming = opts.req.headers.get('x-request-id');
   const requestId = incoming && incoming.length <= 64 ? incoming : newRequestId();
+  await tagRequest(requestId, session?.user?.id ?? null);
   return {
     req: opts.req,
     user: session?.user ?? null,

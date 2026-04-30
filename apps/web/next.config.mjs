@@ -7,6 +7,11 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ['@onsective/ui', '@onsective/db'],
+  experimental: {
+    // Required on Next 14 for instrumentation.ts to fire on server boot.
+    // Stable in 15.x — drop this flag when we upgrade.
+    instrumentationHook: true,
+  },
   images: {
     remotePatterns: [
       // S3 + CloudFront for product images. Lock down by exact host in prod.

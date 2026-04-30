@@ -3,6 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ['@onsective/ui', '@onsective/db'],
+  experimental: {
+    instrumentationHook: true,
+  },
   async headers() {
     return [
       {

@@ -1,6 +1,6 @@
 /**
  * Next.js calls this once on server boot. Conventional location for runtime
- * observability init (Sentry, OpenTelemetry, etc).
+ * observability init.
  *
  * Sentry is initialized lazily — the package is in deps but only imported
  * when SENTRY_DSN is set, so dev runs without a DSN don't pay the bundle cost.
@@ -16,7 +16,6 @@ export async function register() {
     dsn,
     environment: process.env.NODE_ENV,
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
-    // Don't ship default PII — orderIds and userIds are explicit on tags.
     sendDefaultPii: false,
   });
 }

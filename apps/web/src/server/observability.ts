@@ -3,7 +3,9 @@ import { randomBytes } from 'node:crypto';
 /**
  * Lightweight observability primitives. Sentry is initialized via the SDK's
  * recommended `instrumentation.ts` hook (Next.js convention) — this module
- * only owns request-id minting + structured logging helpers.
+ * owns request-id minting + structured logging helpers, plus a thin shim
+ * to tag the active Sentry scope with a requestId so events and tRPC logs
+ * correlate.
  *
  * Why no winston/pino: stdout JSON is enough for CloudWatch/Datadog/Loki.
  * Add structured-logging deps when we need sampling or async transport.
@@ -27,4 +29,20 @@ export function log(level: LogLevel, message: string, fields: Record<string, unk
   // eslint-disable-next-line no-console
   if (level === 'error' || level === 'warn') console.error(line);
   else console.log(line);
+}
+
+/**
+ * Tag the active Sentry scope with the requestId so any errors captured during
+ * this request are filterable. Lazy import + DSN guard keeps it free when
+ * Sentry isn't configured.
+ */
+export async function tagRequest(requestId: string, userId: string | null): Promise<void> {
+  if (!process.env.SENTRY_DSN) return;
+  try {
+    const Sentry = await import('@sentry/nextjs');
+    Sentry.getCurrentScope().setTag('requestId', requestId);
+    if (userId) Sentry.getCurrentScope().setUser({ id: userId });
+  } catch {
+    // Sentry init failed; logging continues normally.
+  }
 }

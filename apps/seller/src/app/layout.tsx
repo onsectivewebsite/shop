@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, Fraunces } from 'next/font/google';
+import { SentryInit } from '@/components/sentry-init';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
@@ -19,7 +20,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${display.variable}`}>
-      <body>{children}</body>
+      <body>
+        <SentryInit />
+        {children}
+      </body>
     </html>
   );
 }

@@ -7,6 +7,7 @@ import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { TRPCProvider } from '@/components/trpc-provider';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
+import { SentryInit } from '@/components/sentry-init';
 import { locales, type Locale } from '@/i18n/config';
 import '../globals.css';
 
@@ -53,6 +54,7 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={`${inter.variable} ${display.variable}`}>
       <body>
+        <SentryInit />
         <TRPCProvider>
           <NextIntlClientProvider messages={messages}>
             <ImpersonationBanner />
