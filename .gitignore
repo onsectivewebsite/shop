@@ -46,3 +46,4 @@ packages/db/prisma/migrations/dev.db*
 # Misc
 *.tsbuildinfo
 .eslintcache
+.gstack/

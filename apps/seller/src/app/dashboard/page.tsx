@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Clock, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Clock, CheckCircle2, ArrowUpRight, Store, FileCheck2, CreditCard, Package, Receipt, Wallet, BarChart3 } from 'lucide-react';
 import { getSellerSession } from '@/server/auth';
 import { prisma } from '@/server/db';
 import { SellerShell } from '@/components/seller-shell';
@@ -80,43 +80,91 @@ export default async function SellerDashboard() {
           </div>
         )}
 
-        {/* Detail pages stub — full UI moving from main app over time */}
-        <div className="mt-12 rounded-3xl border border-amber-200 bg-amber-50 p-6">
-          <p className="text-sm font-semibold text-amber-900">Heads up</p>
-          <p className="mt-1 text-sm text-amber-800">
-            The product wizard, orders queue, payouts ledger, and analytics charts
-            are still served from the main app. They&rsquo;ll move into this portal
-            in the next deploy. For now:
+        {/* Quick actions — onboarding tools always visible */}
+        <div className="mt-12">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-stone-500">
+            Manage your storefront
           </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link
-              href="https://itsnottechy.cloud/en/seller/products"
-              className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100"
-            >
-              Products <ExternalLink size={11} strokeWidth={1.75} />
-            </Link>
-            <Link
-              href="https://itsnottechy.cloud/en/seller/orders"
-              className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100"
-            >
-              Orders <ExternalLink size={11} strokeWidth={1.75} />
-            </Link>
-            <Link
-              href="https://itsnottechy.cloud/en/seller/payouts"
-              className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100"
-            >
-              Payouts <ExternalLink size={11} strokeWidth={1.75} />
-            </Link>
-            <Link
-              href="https://itsnottechy.cloud/en/seller/analytics"
-              className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100"
-            >
-              Analytics <ExternalLink size={11} strokeWidth={1.75} />
-            </Link>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <ActionTile
+              href="/dashboard/storefront"
+              icon={Store}
+              title="Storefront profile"
+              sub="Edit name, description, country, tax id"
+            />
+            <ActionTile
+              href="/dashboard/kyc"
+              icon={FileCheck2}
+              title="KYC documents"
+              sub="Submit identity + business proof"
+            />
+            <ActionTile
+              href="/dashboard/connect"
+              icon={CreditCard}
+              title="Stripe payouts"
+              sub={seller.stripePayoutsEnabled ? 'Connected · ready' : 'Connect bank account'}
+            />
           </div>
         </div>
+
+        {/* Day-to-day operations — placeholders until next deploy */}
+        {seller.status === 'APPROVED' && (
+          <div className="mt-10">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-stone-500">
+              Day-to-day operations · coming next deploy
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <SoonTile icon={Package} title="Products" />
+              <SoonTile icon={Receipt} title="Orders" />
+              <SoonTile icon={Wallet} title="Payouts ledger" />
+              <SoonTile icon={BarChart3} title="Analytics" />
+            </div>
+          </div>
+        )}
       </div>
     </SellerShell>
+  );
+}
+
+function ActionTile({
+  href,
+  icon: Icon,
+  title,
+  sub,
+}: {
+  href: string;
+  icon: typeof Store;
+  title: string;
+  sub: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group relative block rounded-3xl border border-stone-200 bg-white p-6 transition-all hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-[0_8px_24px_rgba(0,0,0,0.04)]"
+    >
+      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+        <Icon size={18} strokeWidth={1.75} />
+      </span>
+      <p className="mt-5 font-display text-lg font-medium tracking-tight text-stone-950">{title}</p>
+      <p className="mt-1 text-sm text-stone-600">{sub}</p>
+      <ArrowUpRight
+        size={14}
+        strokeWidth={1.75}
+        className="absolute right-5 top-5 text-stone-300 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-stone-900"
+      />
+    </Link>
+  );
+}
+
+function SoonTile({ icon: Icon, title }: { icon: typeof Store; title: string }) {
+  return (
+    <div className="rounded-3xl border border-stone-200 bg-white/60 p-5 opacity-70">
+      <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-stone-100 text-stone-500">
+        <Icon size={16} strokeWidth={1.75} />
+      </span>
+      <p className="mt-4 font-display text-base font-medium text-stone-700">{title}</p>
+      <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-stone-400">Soon</p>
+    </div>
   );
 }
 
