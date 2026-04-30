@@ -7,6 +7,7 @@ import { ProductGallery } from '@/components/product/gallery';
 import { Buybox, type BuyboxVariant } from '@/components/product/buybox';
 import { RelatedAds } from '@/components/product/related-ads';
 import { WishlistHeart } from '@/components/wishlist-heart';
+import { ReviewsSection } from '@/components/product/reviews-section';
 import { RateLimited } from '@/components/rate-limited';
 import { pageReadLimit } from '@/server/page-rate-limit';
 
@@ -136,6 +137,8 @@ export default async function ProductPage({ params }: Props) {
       </div>
 
       <RelatedAds locale={params.locale} productId={product.id} categoryId={product.categoryId} />
+
+      <ReviewsSection productId={product.id} />
 
       <section className="mt-12 max-w-3xl">
         <h2 className="text-lg font-semibold text-slate-900">About this product</h2>

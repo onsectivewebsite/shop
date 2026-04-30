@@ -6,6 +6,7 @@ import {
   Building2,
   Heart,
   ShieldCheck,
+  Star,
   ArrowUpRight,
   type LucideIcon,
 } from 'lucide-react';
@@ -37,6 +38,7 @@ export default async function AccountPage({ params }: { params: { locale: string
           <AccountTile href="/account/orders" icon={Package} title="Orders" sub="Track shipments and view history" />
           <AccountTile href="/account/passkeys" icon={KeyRound} title="Passkeys" sub="Faster sign-in with your device" />
           <AccountTile href="/account/security" icon={ShieldCheck} title="Security" sub="Recovery codes and account safety" />
+          <AccountTile href="/account/reviews" icon={Star} title="Reviews" sub="Reviews you've left across the marketplace" />
           <AccountTile href="/account/organization" icon={Building2} title="Organization" sub="B2B accounts and team members" />
           <AccountTile href="/account/wishlist" icon={Heart} title="Wishlist" sub="Saved items you'll want again" />
         </div>
