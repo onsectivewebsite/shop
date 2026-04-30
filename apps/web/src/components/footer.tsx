@@ -42,7 +42,8 @@ export function Footer() {
             <FooterColumn title="Help">
               <FooterLink href="/help">{t('help')}</FooterLink>
               <FooterLink href="/track">{t('trackOrder')}</FooterLink>
-              <FooterLink href="/returns">{t('returns')}</FooterLink>
+              <FooterLink href="/legal/returns">{t('returns')}</FooterLink>
+              <FooterLink href="/legal/shipping">{t('shipping')}</FooterLink>
               <FooterLink href="/contact">{t('contact')}</FooterLink>
             </FooterColumn>
             <FooterColumn title="Sell">
@@ -54,6 +55,7 @@ export function Footer() {
               <FooterLink href="/legal/privacy">{t('privacy')}</FooterLink>
               <FooterLink href="/legal/terms">{t('terms')}</FooterLink>
               <FooterLink href="/legal/cookies">{t('cookies')}</FooterLink>
+              <FooterLink href="/legal/refunds">{t('refunds')}</FooterLink>
             </FooterColumn>
           </div>
         </div>
