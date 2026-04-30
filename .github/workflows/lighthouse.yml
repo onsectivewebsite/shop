@@ -1,0 +1,138 @@
+name: Lighthouse
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      # Only run when the buyer app or anything it imports changed. Saves a few
+      # CI-minutes on PRs that only touch console/seller/docs.
+      - 'apps/web/**'
+      - 'packages/ui/**'
+      - 'packages/db/**'
+      - 'packages/auth/**'
+      - 'lighthouserc.json'
+      - '.github/workflows/lighthouse.yml'
+
+concurrency:
+  group: lighthouse-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Buyer app Lighthouse audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: onsective
+          POSTGRES_PASSWORD: onsective
+          POSTGRES_DB: onsective
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U onsective"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://onsective:onsective@localhost:5432/onsective?schema=public
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      # Required by the auth package; CI uses a deterministic placeholder.
+      SESSION_SECRET: ci-session-secret-32-bytes-padding-padding
+      NODE_ENV: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Apply migrations
+        run: pnpm --filter @onsective/db deploy
+
+      # Lighthouse needs real content on the URLs it audits — the home grid,
+      # search results, and one PDP. The demo seed creates 4 sellers + ~55
+      # products including the slug Lighthouse hits on /product/.
+      - name: Seed demo catalog
+        run: pnpm db:seed:demo
+
+      - name: Build buyer app
+        run: pnpm --filter @onsective/web build
+
+      - name: Start buyer app
+        run: |
+          pnpm --filter @onsective/web start &
+          # Block until /en responds 200 — `next start` boots fast but the
+          # first compilation of dynamic routes takes a beat.
+          for i in {1..40}; do
+            if curl -fsS http://localhost:3000/en > /dev/null; then
+              echo "buyer app ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "buyer app failed to start"
+          exit 1
+
+      - name: Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: ./lighthouserc.json
+          # Public storage gives every audit a sharable html report URL — it
+          # gets posted in the action logs and into the PR comment below.
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Comment results on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = '.lighthouseci';
+            if (!fs.existsSync(path)) {
+              core.warning('No .lighthouseci directory — skipping comment.');
+              return;
+            }
+            const files = fs.readdirSync(path).filter((f) => f.startsWith('lhr-') && f.endsWith('.json'));
+            if (files.length === 0) {
+              core.warning('No Lighthouse reports found — skipping comment.');
+              return;
+            }
+            const rows = [];
+            for (const f of files) {
+              const r = JSON.parse(fs.readFileSync(`${path}/${f}`, 'utf8'));
+              const score = (k) => Math.round((r.categories[k]?.score ?? 0) * 100);
+              rows.push(
+                `| ${r.finalUrl.replace('http://localhost:3000', '')} | ${score('performance')} | ${score('accessibility')} | ${score('best-practices')} | ${score('seo')} |`,
+              );
+            }
+            const body = [
+              '### 🚦 Lighthouse',
+              '',
+              '| URL | Perf | A11y | BP | SEO |',
+              '|---|---|---|---|---|',
+              ...rows,
+              '',
+              'Thresholds: Perf ≥ 85 (warn), A11y ≥ 95, BP ≥ 92.',
+            ].join('\n');
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
