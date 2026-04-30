@@ -109,6 +109,9 @@ export default async function SellerDetail({ params }: { params: { id: string } 
                     <div>
                       <p className="text-sm font-medium">{doc.type}</p>
                       <p className="font-mono text-xs text-slate-500">{doc.fileKey}</p>
+                      <p className="mt-2 text-xs text-slate-500">
+                        Submitted {doc.createdAt.toUTCString()}
+                      </p>
                       {doc.notes && (
                         <p className="mt-1 text-xs text-slate-600">Notes: {doc.notes}</p>
                       )}
@@ -118,6 +121,14 @@ export default async function SellerDetail({ params }: { params: { id: string } 
                           {doc.reviewedBy ?? 'unknown'}
                         </p>
                       )}
+                      <a
+                        href={`/api/kyc/read?documentId=${doc.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:border-slate-500 hover:text-slate-900"
+                      >
+                        Open document →
+                      </a>
                     </div>
                     <Badge
                       variant={
