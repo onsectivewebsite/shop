@@ -8,6 +8,7 @@ import { Footer } from '@/components/footer';
 import { TRPCProvider } from '@/components/trpc-provider';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
 import { SentryInit } from '@/components/sentry-init';
+import { CookieBanner } from '@/components/cookie-banner';
 import { locales, type Locale } from '@/i18n/config';
 import '../globals.css';
 
@@ -61,6 +62,7 @@ export default async function LocaleLayout({
             <Header locale={locale} />
             <main>{children}</main>
             <Footer />
+            <CookieBanner />
           </NextIntlClientProvider>
         </TRPCProvider>
       </body>

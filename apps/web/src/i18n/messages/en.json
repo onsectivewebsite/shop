@@ -66,5 +66,12 @@
     "terms": "Terms",
     "cookies": "Cookies",
     "copyright": "© 2026 Onsective. All rights reserved."
+  },
+  "cookieBanner": {
+    "headline": "Cookies on Onsective",
+    "body": "We use a few essential cookies to keep you signed in and your cart intact. Optional cookies help us improve the experience — only enabled if you say yes.",
+    "acceptAll": "Accept all",
+    "essentialOnly": "Essential only",
+    "learnMore": "Cookie policy"
   }
 }
