@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@onsective/db';
 import { Card, CardContent, Badge, Button } from '@onsective/ui';
+import { SlaPill } from '@/components/sla-indicator';
 import { sendTicketReplyAction } from './actions';
 
 export default async function TicketWorkspace({ params }: { params: { id: string } }) {
@@ -22,7 +23,13 @@ export default async function TicketWorkspace({ params }: { params: { id: string
             <p className="font-mono text-sm text-slate-500">{ticket.ticketNumber}</p>
             <h1 className="text-xl font-bold">{ticket.subject}</h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <SlaPill
+              createdAt={ticket.createdAt}
+              firstResponseAt={ticket.firstResponseAt}
+              slaDueAt={ticket.slaDueAt}
+              resolvedAt={ticket.resolvedAt}
+            />
             <Badge>{ticket.priority}</Badge>
             <Badge>{ticket.status}</Badge>
           </div>
