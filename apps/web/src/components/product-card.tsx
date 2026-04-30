@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Star } from 'lucide-react';
 import { formatMoney } from '@/lib/utils';
 
 type Props = {
@@ -8,6 +9,10 @@ type Props = {
     title: string;
     brand: string | null;
     images: string[];
+    // Optional so older call sites that don't select these still compile.
+    // When ratingCount is 0 or omitted, the rating line is suppressed.
+    ratingAvg?: number;
+    ratingCount?: number;
     variants: Array<{ priceAmount: number; mrpAmount: number | null; currency: string }>;
   };
 };
@@ -15,6 +20,7 @@ type Props = {
 export function ProductCard({ locale, product }: Props) {
   const v = product.variants[0];
   const cover = product.images[0];
+  const showRating = (product.ratingCount ?? 0) > 0;
 
   return (
     <Link
@@ -40,6 +46,23 @@ export function ProductCard({ locale, product }: Props) {
           <p className="text-xs uppercase tracking-wide text-slate-500">{product.brand}</p>
         )}
         <h3 className="line-clamp-2 text-sm font-medium text-slate-900">{product.title}</h3>
+        {showRating && (
+          <div className="flex items-center gap-1.5 pt-0.5 text-xs text-slate-500">
+            <span className="flex items-center text-amber-500">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star
+                  key={i}
+                  size={11}
+                  strokeWidth={0}
+                  fill={i < Math.round(product.ratingAvg ?? 0) ? 'currentColor' : 'none'}
+                  stroke="currentColor"
+                  className={i < Math.round(product.ratingAvg ?? 0) ? '' : 'text-slate-300'}
+                />
+              ))}
+            </span>
+            ({(product.ratingCount ?? 0).toLocaleString()})
+          </div>
+        )}
         {v && (
           <p className="pt-1 text-base font-semibold tabular-nums text-slate-900">
             {formatMoney(v.priceAmount, v.currency)}

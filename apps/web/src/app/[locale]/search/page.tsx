@@ -32,6 +32,8 @@ type SearchHitItem = {
   title: string;
   brand: string | null;
   images: string[];
+  ratingAvg: number;
+  ratingCount: number;
   variants: Array<{ priceAmount: number; mrpAmount: number | null; currency: string }>;
 };
 
@@ -71,6 +73,10 @@ async function runSearch(
         title: h.title,
         brand: h.brand,
         images: h.images,
+        // OpenSearch index doesn't carry rating yet — surface 0/0 so the card
+        // suppresses the rating line. Postgres path gets the real values.
+        ratingAvg: 0,
+        ratingCount: 0,
         variants:
           h.priceAmount !== null && h.currency !== null
             ? [{ priceAmount: h.priceAmount, mrpAmount: null, currency: h.currency }]
@@ -106,9 +112,19 @@ async function runSearch(
       : Prisma.empty;
 
   const rows = await prisma.$queryRaw<
-    Array<{ id: string; slug: string; title: string; brand: string | null; images: string[]; total: bigint }>
+    Array<{
+      id: string;
+      slug: string;
+      title: string;
+      brand: string | null;
+      images: string[];
+      ratingAvg: number;
+      ratingCount: number;
+      total: bigint;
+    }>
   >(Prisma.sql`
     SELECT p."id", p."slug", p."title", p."brand", p."images",
+           p."ratingAvg", p."ratingCount",
            COUNT(*) OVER() AS total
     FROM "Product" p
     ${sellerJoin}
@@ -147,6 +163,8 @@ async function runSearch(
       title: r.title,
       brand: r.brand,
       images: r.images,
+      ratingAvg: r.ratingAvg,
+      ratingCount: r.ratingCount,
       variants: byProduct.has(r.id) ? [byProduct.get(r.id)!] : [],
     })),
     total,
@@ -171,6 +189,8 @@ async function runAdSlate(query: string) {
           brand: true,
           images: true,
           status: true,
+          ratingAvg: true,
+          ratingCount: true,
           variants: {
             where: { isActive: true },
             orderBy: { priceAmount: 'asc' },
