@@ -459,6 +459,8 @@ model Product {
 
   @@index([sellerId, status])
   @@index([categoryId, status])
+  @@index([categoryId, status, createdAt(sort: Desc)])
+  @@index([status, salesCount(sort: Desc)])
   @@index([countryCode, status])
   @@index([slug])
 }
@@ -685,6 +687,7 @@ model OrderItem {
   @@index([orderId])
   @@index([sellerId, status])
   @@index([variantId])
+  @@index([status, updatedAt])
 }
 
 model OrderEvent {
@@ -1281,6 +1284,7 @@ model Review {
   reports         ReviewReport[]
 
   @@index([productId, rating])
+  @@index([productId, isHidden])
   @@index([buyerId])
 }
 
@@ -1364,6 +1368,8 @@ model AuditLog {
 
   @@index([actorId, createdAt])
   @@index([targetType, targetId])
+  @@index([action, createdAt])
+  @@index([createdAt])
 }
 
 model FeatureFlag {
