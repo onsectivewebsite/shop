@@ -141,7 +141,12 @@ export default async function SellerDashboard() {
                 title="Payouts"
                 sub={seller.stripePayoutsEnabled ? 'View ledger' : 'Connect Stripe'}
               />
-              <SoonTile icon={BarChart3} title="Analytics" />
+              <ActionTile
+                href="/dashboard/analytics"
+                icon={BarChart3}
+                title="Analytics"
+                sub="Revenue, units, top products"
+              />
             </div>
           </div>
         )}
