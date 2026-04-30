@@ -7,6 +7,8 @@ import { ProductGallery } from '@/components/product/gallery';
 import { Buybox, type BuyboxVariant } from '@/components/product/buybox';
 import { RelatedAds } from '@/components/product/related-ads';
 import { WishlistHeart } from '@/components/wishlist-heart';
+import { RateLimited } from '@/components/rate-limited';
+import { pageReadLimit } from '@/server/page-rate-limit';
 
 type Props = { params: { locale: string; slug: string } };
 
@@ -23,6 +25,9 @@ export async function generateMetadata({ params }: Props) {
 }
 
 export default async function ProductPage({ params }: Props) {
+  const limit = await pageReadLimit();
+  if (!limit.ok) return <RateLimited retryAfter={limit.retryAfterSeconds} />;
+
   const product = await prisma.product.findUnique({
     where: { slug: params.slug },
     include: {

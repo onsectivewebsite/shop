@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { Star } from 'lucide-react';
 import { prisma } from '@/server/db';
+import { pageReadLimit } from '@/server/page-rate-limit';
+import { RateLimited } from '@/components/rate-limited';
 
 export const metadata = { title: "Today's Deals" };
 export const dynamic = 'force-dynamic';
@@ -27,6 +29,9 @@ export default async function DealsPage({
   params: { locale: string };
   searchParams: { page?: string; sort?: string };
 }) {
+  const limit = await pageReadLimit();
+  if (!limit.ok) return <RateLimited retryAfter={limit.retryAfterSeconds} />;
+
   const page = Math.max(1, Number(searchParams.page) || 1);
   const sort = searchParams.sort ?? 'pct';
 

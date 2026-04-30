@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/server/db';
 import { ProductCard } from '@/components/product-card';
+import { RateLimited } from '@/components/rate-limited';
+import { pageReadLimit } from '@/server/page-rate-limit';
 
 const PER_PAGE = 24;
 
@@ -19,6 +21,9 @@ export async function generateMetadata({ params }: Props) {
 }
 
 export default async function CategoryPage({ params, searchParams }: Props) {
+  const limit = await pageReadLimit();
+  if (!limit.ok) return <RateLimited retryAfter={limit.retryAfterSeconds} />;
+
   const page = Math.max(1, Number(searchParams.page ?? 1) || 1);
 
   const category = await prisma.category.findUnique({

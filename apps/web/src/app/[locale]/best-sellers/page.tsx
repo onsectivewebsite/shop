@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { Star, Trophy } from 'lucide-react';
 import { prisma } from '@/server/db';
+import { pageReadLimit } from '@/server/page-rate-limit';
+import { RateLimited } from '@/components/rate-limited';
 
 export const metadata = { title: 'Best Sellers' };
 export const dynamic = 'force-dynamic';
@@ -27,6 +29,9 @@ export default async function BestSellersPage({
   params: { locale: string };
   searchParams: { page?: string; category?: string };
 }) {
+  const limit = await pageReadLimit();
+  if (!limit.ok) return <RateLimited retryAfter={limit.retryAfterSeconds} />;
+
   const page = Math.max(1, Number(searchParams.page) || 1);
 
   // Optional category filter via slug

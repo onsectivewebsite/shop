@@ -1,8 +1,10 @@
 import { ProductCard } from '@/components/product-card';
 import { SponsoredCard } from '@/components/sponsored-card';
 import { SearchFilters } from '@/components/search-filters';
+import { RateLimited } from '@/components/rate-limited';
 import { prisma } from '@/server/db';
 import { Prisma } from '@onsective/db';
+import { pageReadLimit } from '@/server/page-rate-limit';
 import { isOpenSearchEnabled, searchProducts } from '@/server/search/opensearch';
 
 const PER_PAGE = 24;
@@ -214,6 +216,9 @@ export default async function SearchPage({ params, searchParams }: Props) {
       </div>
     );
   }
+
+  const limit = await pageReadLimit();
+  if (!limit.ok) return <RateLimited retryAfter={limit.retryAfterSeconds} />;
 
   const [{ items, total }, ads] = await Promise.all([runSearch(q, page, filters), runAdSlate(q)]);
   const adProductIds = new Set(ads.map((a) => a.product.id));

@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { Star, TrendingUp, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { prisma } from '@/server/db';
+import { pageReadLimit } from '@/server/page-rate-limit';
+import { RateLimited } from '@/components/rate-limited';
 
 export const metadata = { title: 'Trending now' };
 export const dynamic = 'force-dynamic';
@@ -28,6 +30,9 @@ export default async function TrendingPage({
   params: { locale: string };
   searchParams: { page?: string; window?: string };
 }) {
+  const limit = await pageReadLimit();
+  if (!limit.ok) return <RateLimited retryAfter={limit.retryAfterSeconds} />;
+
   const page = Math.max(1, Number(searchParams.page) || 1);
   const windowHours = searchParams.window === '6h' ? 6 : searchParams.window === '7d' ? 168 : 24;
 

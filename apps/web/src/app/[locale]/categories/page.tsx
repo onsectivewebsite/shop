@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 import { prisma } from '@/server/db';
+import { pageReadLimit } from '@/server/page-rate-limit';
+import { RateLimited } from '@/components/rate-limited';
 
 export const metadata = { title: 'All categories' };
 export const dynamic = 'force-dynamic';
@@ -21,6 +23,9 @@ export default async function CategoriesIndexPage({
 }: {
   params: { locale: string };
 }) {
+  const limit = await pageReadLimit();
+  if (!limit.ok) return <RateLimited retryAfter={limit.retryAfterSeconds} />;
+
   // Pull active categories with their children + active product counts in
   // one round trip. The tree is small (8 top-level × N children), so an
   // in-memory join is fine.
