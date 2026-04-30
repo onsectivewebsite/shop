@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { LayoutDashboard, Package, Receipt, Wallet, BarChart3, MessageSquare, HelpCircle, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, Receipt, Wallet, BarChart3, MessageSquare, HelpCircle, Megaphone, LogOut } from 'lucide-react';
 
 export function SellerShell({
   children,
@@ -46,6 +46,9 @@ export function SellerShell({
                 </Link>
                 <Link href="/dashboard/qa" className="inline-flex items-center gap-1.5 hover:text-stone-950">
                   <HelpCircle size={14} strokeWidth={1.75} /> Q&amp;A
+                </Link>
+                <Link href="/dashboard/ads" className="inline-flex items-center gap-1.5 hover:text-stone-950">
+                  <Megaphone size={14} strokeWidth={1.75} /> Ads
                 </Link>
                 <Link href="/dashboard/analytics" className="inline-flex items-center gap-1.5 hover:text-stone-950">
                   <BarChart3 size={14} strokeWidth={1.75} /> Analytics
