@@ -5,12 +5,15 @@ import { catalogRouter } from './catalog';
 import { cartRouter } from './cart';
 import { checkoutRouter } from './checkout';
 import { orderRouter } from './order';
-import { sellerRouter } from './seller';
 import { adminRouter } from './admin';
 import { primeRouter } from './prime';
 import { adsRouter } from './ads';
 import { returnsRouter } from './returns';
 import { organizationsRouter } from './organizations';
+
+// Seller-side surface lives in apps/seller (REST routes at
+// /api/seller/* on seller.itsnottechy.cloud). The buyer app no longer
+// proxies seller mutations.
 
 export const appRouter = router({
   auth: authRouter,
@@ -19,7 +22,6 @@ export const appRouter = router({
   cart: cartRouter,
   checkout: checkoutRouter,
   order: orderRouter,
-  seller: sellerRouter,
   admin: adminRouter,
   prime: primeRouter,
   ads: adsRouter,

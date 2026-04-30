@@ -3,20 +3,12 @@ import { Inter, Fraunces } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { headers } from 'next/headers';
 import { Header } from '@/components/header';
-import { SellerHeader } from '@/components/seller/header';
 import { Footer } from '@/components/footer';
 import { TRPCProvider } from '@/components/trpc-provider';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
 import { locales, type Locale } from '@/i18n/config';
 import '../globals.css';
-
-function isSellerHost(): boolean {
-  const h = headers();
-  const host = (h.get('x-forwarded-host') ?? h.get('host') ?? '').split(':')[0]?.toLowerCase();
-  return host === 'seller.itsnottechy.cloud';
-}
 
 const inter = Inter({
   subsets: ['latin'],
@@ -57,7 +49,6 @@ export default async function LocaleLayout({
   if (!locales.includes(locale as Locale)) notFound();
 
   const messages = await getMessages();
-  const sellerSurface = isSellerHost();
 
   return (
     <html lang={locale} className={`${inter.variable} ${display.variable}`}>
@@ -65,9 +56,9 @@ export default async function LocaleLayout({
         <TRPCProvider>
           <NextIntlClientProvider messages={messages}>
             <ImpersonationBanner />
-            {sellerSurface ? <SellerHeader /> : <Header />}
+            <Header />
             <main>{children}</main>
-            {!sellerSurface && <Footer />}
+            <Footer />
           </NextIntlClientProvider>
         </TRPCProvider>
       </body>

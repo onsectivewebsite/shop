@@ -1,9 +1,10 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Mail, Clock } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { getSellerSession } from '@/server/auth';
 import { prisma } from '@/server/db';
 import { SellerShell } from '@/components/seller-shell';
+import { KycUploader } from './kyc-uploader';
 
 export const metadata = { title: 'KYC documents' };
 
@@ -11,8 +12,8 @@ const REQUIRED_DOCS: { type: string; label: string; example: string }[] = [
   { type: 'GOVT_ID', label: 'Government-issued ID', example: 'Passport, driver license, national ID' },
   { type: 'BUSINESS_REGISTRATION', label: 'Business registration', example: 'Certificate of incorporation, sole-prop registration' },
   { type: 'TAX_CERTIFICATE', label: 'Tax certificate', example: 'GSTIN / EIN / VAT registration' },
-  { type: 'BANK_STATEMENT', label: 'Bank statement', example: 'Last 3 months, redacted is fine' },
-  { type: 'ADDRESS_PROOF', label: 'Address proof', example: 'Utility bill, lease, less than 3 months old' },
+  { type: 'BANK_STATEMENT', label: 'Bank statement', example: 'Last 3 months — redactions are fine' },
+  { type: 'ADDRESS_PROOF', label: 'Address proof', example: 'Utility bill / lease, less than 3 months old' },
 ];
 
 export default async function KycPage() {
@@ -24,7 +25,17 @@ export default async function KycPage() {
   });
   if (!seller) redirect('/apply');
 
-  const docsByType = new Map(seller.kycDocuments.map((d) => [d.type, d]));
+  // Latest submission per doc type
+  const latest = new Map<string, (typeof seller.kycDocuments)[number]>();
+  for (const d of seller.kycDocuments) {
+    if (!latest.has(d.type)) latest.set(d.type, d);
+  }
+
+  const submittedCount = REQUIRED_DOCS.filter((d) => {
+    const cur = latest.get(d.type);
+    return cur && (cur.status === 'PENDING' || cur.status === 'APPROVED');
+  }).length;
+  const approvedCount = REQUIRED_DOCS.filter((d) => latest.get(d.type)?.status === 'APPROVED').length;
 
   return (
     <SellerShell email={session.user.email} name={session.user.fullName ?? undefined}>
@@ -40,75 +51,72 @@ export default async function KycPage() {
           KYC documents
         </h1>
         <p className="mt-3 max-w-2xl text-sm text-stone-600">
-          To approve your seller account, Onsective ops needs to verify your identity, business
-          registration, and bank ownership. Send the five documents below to{' '}
-          <a
-            href={`mailto:help@onsective.com?subject=KYC docs for seller ${seller.id}`}
-            className="font-medium text-stone-900 underline-offset-4 hover:underline"
-          >
-            help@onsective.com
-          </a>
-          . Reference your seller ID:{' '}
-          <code className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-xs">{seller.id}</code>
+          Upload the five documents below so Onsective ops can verify your identity, business
+          registration, and bank ownership. Files are stored privately — only Onsective ops can
+          read them.
         </p>
+
+        <div className="mt-6 inline-flex items-center gap-3 rounded-full bg-stone-100 px-4 py-1.5 text-xs font-semibold text-stone-700">
+          <span>
+            {approvedCount} approved · {submittedCount - approvedCount} in review · {REQUIRED_DOCS.length - submittedCount} remaining
+          </span>
+        </div>
 
         <div className="mt-10 max-w-3xl space-y-3">
           {REQUIRED_DOCS.map((d) => {
-            const submitted = docsByType.get(d.type);
+            const cur = latest.get(d.type);
             return (
               <div
                 key={d.type}
                 className="flex items-start justify-between gap-6 rounded-2xl border border-stone-200 bg-white p-5"
               >
-                <div>
+                <div className="flex-1">
                   <p className="font-display text-lg font-medium text-stone-950">{d.label}</p>
                   <p className="mt-1 text-sm text-stone-500">{d.example}</p>
-                  {submitted && (
+                  {cur && (
                     <p className="mt-2 text-xs text-stone-500">
-                      Submitted {submitted.createdAt.toUTCString()}
+                      Last submitted {cur.createdAt.toUTCString()}
+                      {cur.notes && (
+                        <span className="ml-2 italic text-rose-700">· {cur.notes}</span>
+                      )}
                     </p>
                   )}
                 </div>
-                <div>
-                  {submitted ? (
-                    <Badge status={submitted.status} />
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700">
-                      <Clock size={11} /> Awaiting
-                    </span>
-                  )}
+                <div className="flex flex-col items-end gap-2">
+                  <Badge status={cur?.status ?? null} />
+                  <KycUploader docType={d.type} label={cur ? 'replace' : 'doc'} />
                 </div>
               </div>
             );
           })}
         </div>
 
-        <div className="mt-10 max-w-3xl rounded-3xl border border-amber-200 bg-amber-50 p-6">
-          <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
-            <Mail size={14} /> Direct upload coming soon
-          </p>
-          <p className="mt-2 text-sm text-amber-800">
-            We&rsquo;re wiring up direct in-portal uploads. For now, email scans (or clear photos) of the
-            five documents above to{' '}
-            <a href="mailto:help@onsective.com" className="font-medium underline">
-              help@onsective.com
-            </a>{' '}
-            with your seller ID in the subject line. Most reviews complete within one business day.
-          </p>
-        </div>
+        <p className="mt-10 max-w-2xl text-xs text-stone-500">
+          Accepted formats: JPEG, PNG, WebP, or PDF. Max 10 MB per file. Re-uploading a doc
+          supersedes the previous PENDING submission. APPROVED documents are immutable.
+        </p>
       </div>
     </SellerShell>
   );
 }
 
-function Badge({ status }: { status: string }) {
-  const v = status === 'APPROVED'
-    ? { bg: 'bg-emerald-100', fg: 'text-emerald-900', label: 'Approved' }
-    : status === 'REJECTED'
-    ? { bg: 'bg-red-100', fg: 'text-red-900', label: 'Rejected — resubmit' }
-    : { bg: 'bg-amber-100', fg: 'text-amber-900', label: 'In review' };
+function Badge({ status }: { status: string | null }) {
+  if (!status) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700">
+        <Clock size={11} /> Awaiting
+      </span>
+    );
+  }
+  const v = {
+    PENDING: { bg: 'bg-amber-100', fg: 'text-amber-900', icon: Clock, label: 'In review' },
+    APPROVED: { bg: 'bg-emerald-100', fg: 'text-emerald-900', icon: CheckCircle2, label: 'Approved' },
+    REJECTED: { bg: 'bg-rose-100', fg: 'text-rose-900', icon: XCircle, label: 'Rejected — resubmit' },
+  }[status as 'PENDING' | 'APPROVED' | 'REJECTED']!;
+  const Icon = v.icon;
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${v.bg} ${v.fg}`}>
+      <Icon size={11} strokeWidth={2.5} />
       {v.label}
     </span>
   );
