@@ -107,14 +107,19 @@ export default async function SellerDashboard() {
           </div>
         </div>
 
-        {/* Day-to-day operations — placeholders until next deploy */}
+        {/* Day-to-day operations */}
         {seller.status === 'APPROVED' && (
           <div className="mt-10">
             <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-stone-500">
-              Day-to-day operations · coming next deploy
+              Day-to-day operations
             </p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <SoonTile icon={Package} title="Products" />
+              <ActionTile
+                href="/dashboard/products"
+                icon={Package}
+                title="Products"
+                sub={`${seller._count.products} active`}
+              />
               <SoonTile icon={Receipt} title="Orders" />
               <SoonTile icon={Wallet} title="Payouts ledger" />
               <SoonTile icon={BarChart3} title="Analytics" />
