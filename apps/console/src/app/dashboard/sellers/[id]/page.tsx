@@ -6,6 +6,10 @@ import {
   approveSellerAction,
   rejectSellerAction,
   reviewKycDocumentAction,
+  updateCommissionAction,
+  forceDisconnectStripeAction,
+  reactivateFromSuspendedAction,
+  suspendSellerAction,
 } from './actions';
 
 export const metadata = { title: 'Seller · Console' };
@@ -89,8 +93,143 @@ export default async function SellerDetail({ params }: { params: { id: string } 
         <Stat label="Products" value={seller._count.products} />
         <Stat label="Orders" value={seller._count.orderItems} />
         <Stat label="Rating" value={seller.ratingAvg.toFixed(2)} />
-        <Stat label="Stripe payouts" value={seller.stripePayoutsEnabled ? 'enabled' : 'disabled'} />
+        <Stat label="Commission" value={`${seller.defaultCommissionPct.toFixed(2)}%`} />
       </div>
+
+      {/* Manage — visible once seller is APPROVED or SUSPENDED */}
+      {(seller.status === 'APPROVED' || seller.status === 'SUSPENDED') && (
+        <section className="mt-12">
+          <h2 className="text-xl font-semibold">Manage seller</h2>
+          <div className="mt-4 grid gap-4 lg:grid-cols-3">
+            {/* Commission */}
+            <Card>
+              <CardContent className="space-y-3 p-5">
+                <p className="text-sm font-semibold">Commission rate</p>
+                <p className="text-xs text-slate-500">
+                  Default cut on every sale. Category-tier overrides apply on top.
+                </p>
+                <form
+                  action={updateCommissionAction.bind(null, seller.id)}
+                  className="flex items-center gap-2"
+                >
+                  <input
+                    name="commissionPct"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="30"
+                    required
+                    defaultValue={seller.defaultCommissionPct.toFixed(2)}
+                    className="h-9 w-24 rounded-md border border-slate-300 bg-white px-2 text-sm font-mono"
+                  />
+                  <span className="text-sm">%</span>
+                  <Button type="submit" size="sm">
+                    Update
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Stripe */}
+            <Card>
+              <CardContent className="space-y-3 p-5">
+                <p className="text-sm font-semibold">Stripe Connect</p>
+                {seller.stripeAccountId ? (
+                  <>
+                    <p className="text-xs text-slate-500">
+                      Account <code className="font-mono text-[11px]">{seller.stripeAccountId}</code>
+                      {seller.stripePayoutsEnabled
+                        ? ' · payouts enabled'
+                        : ' · payouts disabled'}
+                    </p>
+                    <details className="rounded-md border border-error-200 bg-error-50 p-3 text-sm">
+                      <summary className="cursor-pointer font-medium text-error-700">
+                        Force disconnect…
+                      </summary>
+                      <form
+                        action={forceDisconnectStripeAction.bind(null, seller.id)}
+                        className="mt-2 space-y-2"
+                      >
+                        <textarea
+                          name="reason"
+                          required
+                          rows={2}
+                          maxLength={500}
+                          placeholder="Reason (compliance, fraud, KYC reset, …)"
+                          className="w-full rounded-md border border-slate-300 p-2 text-xs"
+                        />
+                        <Button type="submit" variant="destructive" size="sm">
+                          Confirm disconnect
+                        </Button>
+                      </form>
+                    </details>
+                  </>
+                ) : (
+                  <p className="text-xs text-slate-500">No Stripe account on file.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Status */}
+            <Card>
+              <CardContent className="space-y-3 p-5">
+                <p className="text-sm font-semibold">Account status</p>
+                {seller.status === 'APPROVED' ? (
+                  <>
+                    <p className="text-xs text-slate-500">
+                      Active — listings live, orders flowing, payouts on schedule.
+                    </p>
+                    <details className="rounded-md border border-error-200 bg-error-50 p-3 text-sm">
+                      <summary className="cursor-pointer font-medium text-error-700">
+                        Suspend…
+                      </summary>
+                      <form
+                        action={suspendSellerAction.bind(null, seller.id)}
+                        className="mt-2 space-y-2"
+                      >
+                        <textarea
+                          name="reason"
+                          required
+                          rows={2}
+                          maxLength={500}
+                          placeholder="Reason (visible to seller)"
+                          className="w-full rounded-md border border-slate-300 p-2 text-xs"
+                        />
+                        <Button type="submit" variant="destructive" size="sm">
+                          Suspend account
+                        </Button>
+                      </form>
+                    </details>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-slate-500">
+                      Suspended{seller.suspendedReason ? ` · ${seller.suspendedReason}` : ''}.
+                      Listings are hidden from buyers; payouts are paused.
+                    </p>
+                    <form
+                      action={reactivateFromSuspendedAction.bind(null, seller.id)}
+                      className="space-y-2"
+                    >
+                      <textarea
+                        name="note"
+                        required
+                        rows={2}
+                        maxLength={500}
+                        placeholder="Reactivation note (audit only)"
+                        className="w-full rounded-md border border-slate-300 p-2 text-xs"
+                      />
+                      <Button type="submit" variant="cta" size="sm">
+                        Reactivate
+                      </Button>
+                    </form>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      )}
 
       <h2 className="mt-12 text-xl font-semibold">KYC documents</h2>
       {seller.kycDocuments.length === 0 ? (
