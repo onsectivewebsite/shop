@@ -151,6 +151,34 @@ export async function sendOtpSms(to: string, code: string): Promise<void> {
   await sendSms(to, `Your Onsective code is ${code}. It expires in 10 minutes.`);
 }
 
+export async function sendSuspiciousLoginEmail(
+  to: string,
+  meta: { ip: string | null; country: string | null; userAgent: string | null; at: Date; revokeUrl: string },
+): Promise<void> {
+  const when = meta.at.toUTCString();
+  const where = meta.country ? `${meta.country}` : 'an unfamiliar location';
+  await send({
+    to,
+    subject: '⚠ New sign-in from an unfamiliar country',
+    text:
+      `We just signed you in from ${where} (${meta.ip ?? 'unknown IP'}) at ${when}. ` +
+      `If this wasn't you, click this link to sign out everywhere and force a password reset: ${meta.revokeUrl}`,
+    html: shell(
+      'New sign-in from an unfamiliar country',
+      `<p>We just signed you in from a country we haven't seen on your account before:</p>
+       <ul style="font-size: 14px; color: #334155;">
+         <li><strong>When:</strong> ${when}</li>
+         <li><strong>Country:</strong> ${meta.country ?? 'unknown'}</li>
+         <li><strong>IP:</strong> ${meta.ip ?? 'unknown'}</li>
+         <li><strong>Device:</strong> ${meta.userAgent ?? 'unknown'}</li>
+       </ul>
+       <p>If this was you — you can ignore this email. Otherwise, click below. We'll sign every device out, scrub your password, and email you a reset link:</p>
+       <p style="margin: 16px 0;"><a href="${meta.revokeUrl}" style="display:inline-block;background:#b91c1c;color:white;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:600;font-size:14px;">It wasn't me — lock my account</a></p>
+       <p style="font-size: 13px; color: #64748b;">This link expires in 7 days and can be used once.</p>`,
+    ),
+  });
+}
+
 export async function sendAccountDeletionEmail(to: string, code: string): Promise<void> {
   await send({
     to,

@@ -70,6 +70,8 @@ model User {
   sessions       Session[]
   otps           Otp[]
   recoveryCodes  RecoveryCode[]
+  loginEvents    LoginEvent[]
+  suspiciousLoginTokens SuspiciousLoginToken[]
   dataExportJobs DataExportJob[]
   passkeys       Passkey[]
   webauthnChallenges WebAuthnChallenge[]
@@ -124,6 +126,40 @@ model RecoveryCode {
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   codeHash   String   @unique
+  consumedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Audit + signal source for the suspicious-login detector. Every successful
+// or failed sign-in (password, passkey, passwordless OTP) writes a row here.
+// We keep it light: no PII beyond IP + UA, and rows are pruned by the cron
+// after 90 days.
+model LoginEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ip          String?
+  countryCode String?  // ISO 3166-1 alpha-2, derived from ip via geoip-lite
+  userAgent   String?
+  method      String   // 'password' | 'passkey' | 'passwordless' | 'recovery_code' | 'sms'
+  success     Boolean
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, success, countryCode])
+}
+
+// One-shot tokens emailed to a user when we detect a sign-in from a country
+// they've never used before. Clicking the token revokes every session and
+// forces a password reset. Hashed at rest, just like Otp + RecoveryCode.
+model SuspiciousLoginToken {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String   @unique
+  expiresAt  DateTime
   consumedAt DateTime?
   createdAt  DateTime @default(now())
 

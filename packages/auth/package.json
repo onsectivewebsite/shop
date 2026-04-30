@@ -13,9 +13,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@onsective/db": "workspace:*"
+    "@onsective/db": "workspace:*",
+    "geoip-lite": "^2.0.1"
   },
   "devDependencies": {
+    "@types/geoip-lite": "^1.4.4",
     "@types/node": "^22.10.0",
     "typescript": "^5.6.3",
     "vitest": "^2.1.8"

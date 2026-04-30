@@ -16,3 +16,11 @@ export {
   consumeRecoveryCode,
   RECOVERY_CODES_PER_BATCH,
 } from './recovery';
+export { lookupCountry, splitForwardedFor } from './geo';
+export {
+  recordLoginEvent,
+  isSuspiciousLogin,
+  issueRevocationToken,
+  consumeRevocationToken,
+} from './login-events';
+export type { LoginContext, LoginMethod } from './login-events';

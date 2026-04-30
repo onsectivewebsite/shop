@@ -12,6 +12,7 @@ import {
   dataExportQueue,
   DATA_EXPORT_JOB,
 } from '../queue';
+import { runPostLoginChecks } from '../login-security';
 import {
   hashPassword,
   verifyPassword,
@@ -194,16 +195,26 @@ export const authRouter = router({
       }
 
       // 5. No 2FA: opt-out path. Create session immediately.
+      const ip = ctx.ipAddress ?? null;
+      const ua = ctx.userAgent ?? null;
+      const now = new Date();
       await createSession(user.id, {
-        ipAddress: ctx.ipAddress ?? undefined,
-        userAgent: ctx.userAgent ?? undefined,
+        ipAddress: ip ?? undefined,
+        userAgent: ua ?? undefined,
+      });
+      await runPostLoginChecks({
+        user,
+        method: 'password',
+        ip,
+        userAgent: ua,
+        at: now,
       });
       await prisma.user.update({
         where: { id: user.id },
         data: {
-          lastLoginAt: new Date(),
-          lastLoginIp: ctx.ipAddress ?? null,
-          lastLoginUserAgent: ctx.userAgent ?? null,
+          lastLoginAt: now,
+          lastLoginIp: ip,
+          lastLoginUserAgent: ua,
         },
       });
       return { ok: true };
@@ -238,7 +249,6 @@ export const authRouter = router({
 
       const ip = ctx.ipAddress ?? null;
       const ua = ctx.userAgent ?? null;
-      const isNewDevice = ip !== user.lastLoginIp || ua !== user.lastLoginUserAgent;
       const now = new Date();
 
       await createSession(user.id, {
@@ -254,11 +264,16 @@ export const authRouter = router({
         },
       });
 
-      // Always notify on a recovery-code login — by definition the regular
-      // 2FA channel was bypassed, so the user should know.
-      await safeSend('recovery code login', () =>
-        sendNewDeviceLoginEmail(user.email, { ip, userAgent: ua, at: now }),
-      );
+      // A recovery-code login bypasses 2FA — always notify, regardless of
+      // device/country history.
+      await runPostLoginChecks({
+        user,
+        method: 'recovery_code',
+        ip,
+        userAgent: ua,
+        at: now,
+        forceNotify: true,
+      });
 
       const remaining = await recoveryCodesStatus(user.id);
       return { ok: true, recoveryCodesRemaining: remaining.unused };
@@ -557,14 +572,15 @@ export const authRouter = router({
 
       const ip = ctx.ipAddress ?? null;
       const ua = ctx.userAgent ?? null;
-      const isNewDevice = ip !== user.lastLoginIp || ua !== user.lastLoginUserAgent;
+      const now = new Date();
 
       await createSession(result.userId, {
         ipAddress: ip ?? undefined,
         userAgent: ua ?? undefined,
       });
 
-      const now = new Date();
+      await runPostLoginChecks({ user, method: 'password', ip, userAgent: ua, at: now });
+
       await prisma.user.update({
         where: { id: result.userId },
         data: {
@@ -573,13 +589,6 @@ export const authRouter = router({
           lastLoginUserAgent: ua,
         },
       });
-
-      if (isNewDevice && user.lastLoginIp) {
-        // Don't send on the very first login (no prior IP)
-        await safeSend('new device', () =>
-          sendNewDeviceLoginEmail(user.email, { ip, userAgent: ua, at: now }),
-        );
-      }
 
       return { ok: true };
     }),
@@ -622,7 +631,6 @@ export const authRouter = router({
 
       const ip = ctx.ipAddress ?? null;
       const ua = ctx.userAgent ?? null;
-      const isNewDevice = ip !== user.lastLoginIp || ua !== user.lastLoginUserAgent;
       const now = new Date();
 
       await prisma.user.update({
@@ -641,11 +649,7 @@ export const authRouter = router({
         userAgent: ua ?? undefined,
       });
 
-      if (isNewDevice && user.lastLoginIp) {
-        await safeSend('new device (passwordless)', () =>
-          sendNewDeviceLoginEmail(user.email, { ip, userAgent: ua, at: now }),
-        );
-      }
+      await runPostLoginChecks({ user, method: 'passwordless', ip, userAgent: ua, at: now });
 
       return { userId: result.userId };
     }),
@@ -790,13 +794,31 @@ export const authRouter = router({
           email: input.email,
           response: input.response,
         });
-        await createSession(userId, {
-          ipAddress: ctx.ipAddress ?? undefined,
-          userAgent: ctx.userAgent ?? undefined,
+        const user = await prisma.user.findUniqueOrThrow({
+          where: { id: userId },
+          select: {
+            id: true,
+            email: true,
+            lastLoginIp: true,
+            lastLoginUserAgent: true,
+          },
         });
+        const ip = ctx.ipAddress ?? null;
+        const ua = ctx.userAgent ?? null;
+        const now = new Date();
+        await createSession(userId, {
+          ipAddress: ip ?? undefined,
+          userAgent: ua ?? undefined,
+        });
+        await runPostLoginChecks({ user, method: 'passkey', ip, userAgent: ua, at: now });
         await prisma.user.update({
           where: { id: userId },
-          data: { lastLoginAt: new Date(), failedLoginAttempts: 0 },
+          data: {
+            lastLoginAt: now,
+            lastLoginIp: ip,
+            lastLoginUserAgent: ua,
+            failedLoginAttempts: 0,
+          },
         });
         return { userId };
       }),
