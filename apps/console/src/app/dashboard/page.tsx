@@ -36,6 +36,7 @@ export default async function ConsoleDashboard() {
         <Pill href="/dashboard/orgs">Organizations</Pill>
         <Pill href="/dashboard/ads">Ads moderation</Pill>
         <Pill href="/dashboard/approvals">4-eyes approvals</Pill>
+        <Pill href="/dashboard/webhooks">Webhooks</Pill>
         <Pill href="/dashboard/audit">Audit log ({stats.last24h.toLocaleString()} last 24h)</Pill>
       </div>
     </div>
