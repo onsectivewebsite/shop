@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-white text-slate-900 font-sans antialiased;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2;
+  }
+}
+
+@layer components {
+  /* Hand-rolled prose styling. We don't use @tailwindcss/typography because
+     the docs body is short enough that bespoke spacing reads cleaner than
+     the plugin's defaults — and we control every code/anchor/ list color. */
+  .prose-docs h1 {
+    @apply mt-0 font-display text-4xl font-normal tracking-tight text-slate-950;
+  }
+  .prose-docs h2 {
+    @apply mt-12 mb-3 font-display text-2xl font-normal tracking-tight text-slate-950 scroll-mt-20;
+  }
+  .prose-docs h3 {
+    @apply mt-8 mb-2 text-lg font-semibold text-slate-900 scroll-mt-20;
+  }
+  .prose-docs p {
+    @apply my-3 leading-relaxed text-slate-700;
+  }
+  .prose-docs ul {
+    @apply my-3 list-disc space-y-1 pl-6 text-slate-700;
+  }
+  .prose-docs ol {
+    @apply my-3 list-decimal space-y-1 pl-6 text-slate-700;
+  }
+  .prose-docs a {
+    @apply font-medium text-slate-900 underline-offset-4 hover:underline;
+  }
+  .prose-docs code {
+    @apply rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[13px] text-slate-900;
+  }
+  .prose-docs pre {
+    @apply my-4 overflow-x-auto rounded-lg border border-slate-200 bg-stone-50 p-4 text-[13px] leading-relaxed;
+  }
+  .prose-docs pre code {
+    @apply bg-transparent p-0 text-slate-800;
+  }
+  .prose-docs strong {
+    @apply font-semibold text-slate-900;
+  }
+}
