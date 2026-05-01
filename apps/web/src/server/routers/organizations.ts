@@ -50,6 +50,15 @@ async function requireMembership(args: {
   return member;
 }
 
+// Postgres status flips to OVERDUE only when the dunning cron runs. Until
+// that ships we derive overdue at read time so the UI stays accurate without
+// stale rows.
+function isOverdue(status: string, dueAt: Date | null): boolean {
+  if (status !== 'ISSUED') return false;
+  if (!dueAt) return false;
+  return dueAt.getTime() < Date.now();
+}
+
 export const organizationsRouter = router({
   my: protectedProcedure.query(async ({ ctx }) => {
     return prisma.organizationMember.findMany({
@@ -241,6 +250,95 @@ export const organizationsRouter = router({
         data: { role: input.role },
       });
     }),
+
+  invoices: router({
+    /** All invoices for an org. OVERDUE is computed in JS rather than read from
+     *  the row so the UI stays correct between dunning-cron runs. */
+    list: protectedProcedure
+      .input(z.object({ organizationId: z.string() }))
+      .query(async ({ ctx, input }) => {
+        await requireMembership({
+          userId: ctx.user.id,
+          organizationId: input.organizationId,
+        });
+        const rows = await prisma.b2BInvoice.findMany({
+          where: { organizationId: input.organizationId },
+          orderBy: [{ issuedAt: 'desc' }, { createdAt: 'desc' }],
+          select: {
+            id: true,
+            invoiceNumber: true,
+            subtotalMinor: true,
+            taxMinor: true,
+            totalMinor: true,
+            currency: true,
+            status: true,
+            issuedAt: true,
+            dueAt: true,
+            paidAt: true,
+            pdfUrl: true,
+            createdAt: true,
+            _count: { select: { orders: true } },
+          },
+        });
+        return rows.map((r) => ({
+          ...r,
+          isOverdue: isOverdue(r.status, r.dueAt),
+        }));
+      }),
+
+    /** Detail with the orders rolled into the invoice — used by the print view. */
+    get: protectedProcedure
+      .input(
+        z.object({
+          organizationId: z.string(),
+          invoiceId: z.string(),
+        }),
+      )
+      .query(async ({ ctx, input }) => {
+        await requireMembership({
+          userId: ctx.user.id,
+          organizationId: input.organizationId,
+        });
+        const invoice = await prisma.b2BInvoice.findFirst({
+          where: { id: input.invoiceId, organizationId: input.organizationId },
+          include: {
+            organization: {
+              select: { legalName: true, taxId: true, countryCode: true },
+            },
+            orders: {
+              orderBy: { createdAt: 'asc' },
+              select: {
+                id: true,
+                orderNumber: true,
+                placedAt: true,
+                subtotalAmount: true,
+                taxAmount: true,
+                shippingAmount: true,
+                totalAmount: true,
+                currency: true,
+                items: {
+                  select: {
+                    id: true,
+                    productTitle: true,
+                    variantTitle: true,
+                    qty: true,
+                    unitPrice: true,
+                    lineSubtotal: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+        if (!invoice) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+        return {
+          ...invoice,
+          isOverdue: isOverdue(invoice.status, invoice.dueAt),
+        };
+      }),
+  }),
 
   /**
    * Returns the active tax exemption for the org+jurisdiction that covers
