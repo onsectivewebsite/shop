@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { router, protectedProcedure, userMutationRateLimit } from '../trpc';
 import { prisma } from '../db';
 import { getStripe } from '../stripe';
+import { getCreditBalance } from '../auth';
 
 /**
  * Checkout router — Phase 1.
@@ -53,7 +54,14 @@ export const checkoutRouter = router({
     const primeActive = await userHasActivePrime(ctx.user.id);
     const shipping = primeActive ? 0 : baseShipping;
     const tax = 0; // Stripe Tax in Phase 2
-    const total = subtotal + shipping + tax;
+    const preCreditTotal = subtotal + shipping + tax;
+
+    // Apply user credit in the cart's currency. Auto-applies up to the
+    // order total — no slider, no opt-out at v1. Splitting an order is
+    // the workaround for users who want to hold credit back.
+    const creditAvailable = await getCreditBalance(ctx.user.id, cart.currency);
+    const creditApplied = Math.min(creditAvailable, preCreditTotal);
+    const total = preCreditTotal - creditApplied;
 
     return {
       cart,
@@ -62,6 +70,8 @@ export const checkoutRouter = router({
       shippingDiscount: primeActive ? baseShipping : 0,
       primeActive,
       tax,
+      creditAvailable,
+      creditApplied,
       total,
       currency: cart.currency,
     };
@@ -103,7 +113,14 @@ export const checkoutRouter = router({
       const primeActive = await userHasActivePrime(ctx.user.id);
       const shipping = primeActive ? 0 : 500 * sellerCount;
       const tax = 0;
-      const total = subtotal + shipping + tax;
+      const preCreditTotal = subtotal + shipping + tax;
+
+      // Re-read the credit balance at order time so two parallel checkouts
+      // can't apply the same credit to two carts. The transaction below
+      // guards the actual decrement so a race here is caught and rejected.
+      const creditAvailable = await getCreditBalance(ctx.user.id, cart.currency);
+      const creditApplied = Math.min(creditAvailable, preCreditTotal);
+      const total = preCreditTotal - creditApplied;
 
       // Order number — production should use a sequence-backed generator
       const year = new Date().getFullYear();
@@ -120,12 +137,45 @@ export const checkoutRouter = router({
             subtotalAmount: subtotal,
             shippingAmount: shipping,
             taxAmount: tax,
+            discountAmount: creditApplied,
             totalAmount: total,
             shippingAddressId: input.shippingAddressId,
             billingAddressId: input.billingAddressId ?? input.shippingAddressId,
             status: 'PAYMENT_PENDING',
           },
         });
+
+        // Redeem credit inside the order-create transaction so we either
+        // get the order + ledger entry + balance decrement together, or
+        // none of them. The guarded updateMany rejects if the live balance
+        // changed under us between read and write — caller retries.
+        if (creditApplied > 0) {
+          const decremented = await tx.userCreditBalance.updateMany({
+            where: {
+              userId: ctx.user.id,
+              currency: cart.currency,
+              amountMinor: { gte: creditApplied },
+            },
+            data: { amountMinor: { decrement: creditApplied } },
+          });
+          if (decremented.count === 0) {
+            throw new TRPCError({
+              code: 'CONFLICT',
+              message: 'Your credit balance changed during checkout. Please retry.',
+            });
+          }
+          await tx.userCreditTransaction.create({
+            data: {
+              userId: ctx.user.id,
+              type: 'REDEEM',
+              amountMinor: -creditApplied,
+              currency: cart.currency,
+              sourceType: 'order',
+              sourceId: created.id,
+              note: `Applied at checkout (${orderNumber})`,
+            },
+          });
+        }
 
         // Reserve inventory
         for (const item of cart.items) {
@@ -172,6 +222,27 @@ export const checkoutRouter = router({
         return created;
       });
 
+      // Credit covered the entire order — skip Stripe and flip the order
+      // straight to PAID. We mirror the essentials of handlePaymentIntent
+      // Succeeded here (status flip + orderEvent) so the rest of the
+      // system sees the same final state for credit-only orders.
+      if (order.totalAmount === 0) {
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { status: 'PAID', placedAt: new Date() },
+        });
+        await prisma.orderEvent.create({
+          data: { orderId: order.id, type: 'paid', toStatus: 'PAID', actor: 'system' },
+        });
+        await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+        return {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          clientSecret: null,
+          paid: true,
+        };
+      }
+
       // Stripe PaymentIntent
       const stripe = getStripe();
       const intent = await stripe.paymentIntents.create(
@@ -204,6 +275,7 @@ export const checkoutRouter = router({
         orderId: order.id,
         orderNumber: order.orderNumber,
         clientSecret: intent.client_secret,
+        paid: false,
       };
     }),
 

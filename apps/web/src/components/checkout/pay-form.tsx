@@ -22,6 +22,11 @@ export function PayForm() {
 
   const place = trpc.checkout.placeOrder.useMutation({
     onSuccess: (data) => {
+      // Credit covered the whole order — no Stripe step. Bounce to success.
+      if (data.paid) {
+        router.replace(`/checkout/success?order=${data.orderNumber}`);
+        return;
+      }
       setClientSecret(data.clientSecret);
       setOrderNumber(data.orderNumber);
     },
@@ -93,6 +98,13 @@ export function PayForm() {
           <Row label="Subtotal" value={formatMoney(summary.subtotal, summary.currency)} />
           <Row label="Shipping" value={formatMoney(summary.shipping, summary.currency)} />
           <Row label="Tax" value={formatMoney(summary.tax, summary.currency)} />
+          {summary.creditApplied > 0 && (
+            <Row
+              label="Onsective credit"
+              value={`−${formatMoney(summary.creditApplied, summary.currency)}`}
+              tone="credit"
+            />
+          )}
           <hr className="border-slate-200" />
           <Row
             label="Total"
@@ -141,11 +153,25 @@ function InnerPayForm({ orderNumber }: { orderNumber: string | null }) {
   );
 }
 
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+function Row({
+  label,
+  value,
+  bold,
+  tone,
+}: {
+  label: string;
+  value: string;
+  bold?: boolean;
+  tone?: 'credit';
+}) {
   return (
     <div className={`flex justify-between text-sm ${bold ? 'font-semibold' : ''}`}>
-      <span className="text-slate-600">{label}</span>
-      <span className="tabular-nums">{value}</span>
+      <span className={tone === 'credit' ? 'text-emerald-700' : 'text-slate-600'}>
+        {label}
+      </span>
+      <span className={`tabular-nums ${tone === 'credit' ? 'text-emerald-700' : ''}`}>
+        {value}
+      </span>
     </div>
   );
 }

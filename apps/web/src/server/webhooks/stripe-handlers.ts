@@ -1,6 +1,6 @@
 import type Stripe from 'stripe';
 import { prisma } from '../db';
-import { awardReferralOnFirstOrder } from '../auth';
+import { awardReferralOnFirstOrder, refundCredit } from '../auth';
 
 /**
  * Event handlers — one per Stripe event type we care about.
@@ -169,6 +169,27 @@ export async function handlePaymentIntentFailed(event: Stripe.Event) {
     },
     update: { status: 'FAILED' },
   });
+
+  // Return any credit the buyer redeemed for this order. refundCredit is
+  // idempotent on (sourceType=order, sourceId, type=REFUND), so a webhook
+  // replay re-runs cleanly without double-crediting. We need the buyerId
+  // and currency to call it — both live on the order row.
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { buyerId: true, currency: true, discountAmount: true },
+    });
+    if (order && order.discountAmount > 0) {
+      await refundCredit({
+        userId: order.buyerId,
+        orderId,
+        currency: order.currency,
+      });
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[credits] refund on failed payment failed:', err);
+  }
 }
 
 export async function handleChargeDisputeCreated(event: Stripe.Event) {
