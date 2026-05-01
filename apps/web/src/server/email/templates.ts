@@ -14,12 +14,31 @@ export type CampaignContext = {
   email: string;
   unsubscribeUrl: string;
   appUrl: string;
+  // Stable id for this recipient's send. The pixel and click tracker key
+  // back to it; null disables tracking (used in the no-SMTP dev path).
+  trackingId: string | null;
 };
 
 export type RenderedEmail = {
   text: string;
   html: string;
 };
+
+/**
+ * Wrap an outbound link in our click-tracker. Plaintext anchors stay as the
+ * original URL — text clients (Apple Mail's "load remote content off"
+ * setting, NVDA, etc) shouldn't have to round-trip through us.
+ */
+function trackedHref(rawUrl: string, trackingId: string | null, appUrl: string): string {
+  if (!trackingId) return rawUrl;
+  return `${appUrl}/e/c/${trackingId}?u=${encodeURIComponent(rawUrl)}`;
+}
+
+/** A 1x1 transparent gif lives at /e/o/<trackingId>.gif and writes OPENED. */
+function trackingPixel(trackingId: string | null, appUrl: string): string {
+  if (!trackingId) return '';
+  return `<img src="${appUrl}/e/o/${trackingId}.gif" alt="" width="1" height="1" style="display:none;border:0;" />`;
+}
 
 const FRAME = (body: string, ctx: CampaignContext): string => `
   <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 540px; margin: 0 auto; padding: 24px; color: #0f172a;">
@@ -33,6 +52,7 @@ const FRAME = (body: string, ctx: CampaignContext): string => `
       these emails? <a href="${ctx.unsubscribeUrl}" style="color:#475569;">Unsubscribe in one click</a>.
       Order updates and security alerts are sent regardless.
     </p>
+    ${trackingPixel(ctx.trackingId, ctx.appUrl)}
   </div>
 `;
 
@@ -42,6 +62,7 @@ const TEMPLATES: Record<string, (ctx: CampaignContext) => RenderedEmail> = {
   // worker before this fires; the template just frames the text.
   announcement: (ctx) => {
     const greet = ctx.userName ? `Hi ${ctx.userName.split(' ')[0]},` : 'Hi,';
+    const ctaHref = trackedHref(ctx.appUrl, ctx.trackingId, ctx.appUrl);
     const text =
       `${greet}\n\n` +
       `We've got something new on Onsective worth your time. Open the marketplace to take a look:\n` +
@@ -51,7 +72,7 @@ const TEMPLATES: Record<string, (ctx: CampaignContext) => RenderedEmail> = {
       <p>${greet}</p>
       <p>We've got something new on Onsective worth your time.</p>
       <p style="margin: 16px 0;">
-        <a href="${ctx.appUrl}" style="display:inline-block;background:#0f172a;color:white;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:600;font-size:14px;">
+        <a href="${ctaHref}" style="display:inline-block;background:#0f172a;color:white;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:600;font-size:14px;">
           Visit Onsective
         </a>
       </p>
@@ -63,6 +84,7 @@ const TEMPLATES: Record<string, (ctx: CampaignContext) => RenderedEmail> = {
   // an audienceQuery like { noOrderInLastDays: 90 }.
   winback: (ctx) => {
     const greet = ctx.userName ? `${ctx.userName.split(' ')[0]},` : 'Hi,';
+    const ctaHref = trackedHref(ctx.appUrl, ctx.trackingId, ctx.appUrl);
     const text =
       `${greet} we miss you.\n\n` +
       `Sellers have shipped thousands of new arrivals since your last order. Take a look — we'll keep your wishlist where you left it: ${ctx.appUrl}\n\n` +
@@ -71,7 +93,7 @@ const TEMPLATES: Record<string, (ctx: CampaignContext) => RenderedEmail> = {
       <p style="font-size: 18px; font-weight: 600;">${greet} we miss you.</p>
       <p>Sellers have shipped thousands of new arrivals since your last order. Your wishlist's still where you left it.</p>
       <p style="margin: 16px 0;">
-        <a href="${ctx.appUrl}" style="display:inline-block;background:#0f172a;color:white;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:600;font-size:14px;">
+        <a href="${ctaHref}" style="display:inline-block;background:#0f172a;color:white;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:600;font-size:14px;">
           See what's new
         </a>
       </p>

@@ -88,11 +88,29 @@ export async function sendCampaign(campaignId: string): Promise<SendCampaignResu
         userId: recipient.id,
         scope: 'marketing',
       });
+
+      // Pre-create the SENT row so its id can drive the open-pixel + click-
+      // tracker URLs in this recipient's body. A subsequent SMTP failure
+      // means SENT is recorded for an email that never reached the inbox —
+      // we accept the slight overcount because attempts ARE signal: opens
+      // against attempts still tells the truth, and the loop's own `sent`
+      // counter (which becomes campaign.sentCount) only increments after
+      // sendMail returns.
+      const sentEvent = await prisma.emailEvent.create({
+        data: {
+          campaignId: campaign.id,
+          userId: recipient.id,
+          type: 'SENT',
+        },
+        select: { id: true },
+      });
+
       const ctx: CampaignContext = {
         userName: recipient.fullName,
         email: recipient.email,
         unsubscribeUrl: `${appUrl}/u/${token}`,
         appUrl,
+        trackingId: sentEvent.id,
       };
       const rendered = renderCampaignEmail(campaign.templateKey, ctx);
 
@@ -120,13 +138,6 @@ export async function sendCampaign(campaignId: string): Promise<SendCampaignResu
         });
       }
 
-      await prisma.emailEvent.create({
-        data: {
-          campaignId: campaign.id,
-          userId: recipient.id,
-          type: 'SENT',
-        },
-      });
       sent += 1;
     } catch (err) {
       failed += 1;
