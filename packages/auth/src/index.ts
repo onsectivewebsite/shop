@@ -24,3 +24,11 @@ export {
   consumeRevocationToken,
 } from './login-events';
 export type { LoginContext, LoginMethod } from './login-events';
+export {
+  getOrMintReferralCode,
+  getReferralStats,
+  recordAttribution,
+  REFERRAL_COOKIE_NAME,
+  REFERRAL_COOKIE_TTL_DAYS,
+} from './referrals';
+export type { ReferralStats } from './referrals';

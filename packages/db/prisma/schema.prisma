@@ -72,6 +72,8 @@ model User {
   recoveryCodes  RecoveryCode[]
   loginEvents    LoginEvent[]
   suspiciousLoginTokens SuspiciousLoginToken[]
+  referralCode   ReferralCode?
+  referralAttribution ReferralAttribution? @relation("ReferredUser")
   dataExportJobs DataExportJob[]
   passkeys       Passkey[]
   webauthnChallenges WebAuthnChallenge[]
@@ -164,6 +166,46 @@ model SuspiciousLoginToken {
   createdAt  DateTime @default(now())
 
   @@index([userId])
+}
+
+// Each user gets a single shareable code minted lazily the first time they
+// visit /account/referrals. Codes are 8 chars, base32-ish (no 0/O/1/I/L) so
+// they're easy to read aloud and type without confusion.
+model ReferralCode {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code      String   @unique
+  createdAt DateTime @default(now())
+
+  attributions ReferralAttribution[]
+
+  @@index([code])
+}
+
+// Records that a buyer signed up after landing on /r/<code>. Unique on
+// referredUserId so no one can be attributed twice. Self-referral (the
+// referrer's own user) is rejected at write time, not by the schema.
+model ReferralAttribution {
+  id              String        @id @default(cuid())
+  codeId          String
+  code            ReferralCode  @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  referredUserId  String        @unique
+  referredUser    User          @relation("ReferredUser", fields: [referredUserId], references: [id], onDelete: Cascade)
+  signedUpAt      DateTime      @default(now())
+  // Set when the referred user's first PAID order lands. Until then the
+  // attribution is "pending" — the referrer has earned nothing yet.
+  firstOrderId    String?
+  // Payout amount in minor units of the referrer's home currency. Awarded
+  // on first-order trigger; null until then.
+  payoutMinor     Int?
+  payoutCurrency  String?
+  // Set when the referrer is actually paid (store credit, ACH, etc).
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+
+  @@index([codeId])
+  @@index([signedUpAt])
 }
 
 enum DataExportStatus {

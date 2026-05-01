@@ -13,8 +13,13 @@ export {
   isSuspiciousLogin,
   issueRevocationToken,
   consumeRevocationToken,
+  getOrMintReferralCode,
+  getReferralStats,
+  recordAttribution,
+  REFERRAL_COOKIE_NAME,
+  REFERRAL_COOKIE_TTL_DAYS,
 } from '@onsective/auth';
-export type { LoginMethod, LoginContext } from '@onsective/auth';
+export type { LoginMethod, LoginContext, ReferralStats } from '@onsective/auth';
 export {
   createSession,
   getSession,
