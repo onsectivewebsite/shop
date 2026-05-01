@@ -214,6 +214,62 @@ model ReferralAttribution {
   @@index([signedUpAt])
 }
 
+enum EmailCampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+}
+
+// Marketing campaigns authored in the console. `audienceQuery` is a small
+// declarative segment definition (see audience-resolver) that compiles to a
+// Prisma where clause at send time. `templateKey` indexes a registry in
+// notifications.ts so the worker can render the body without each campaign
+// shipping its own HTML.
+model EmailCampaign {
+  id            String              @id @default(cuid())
+  name          String
+  subject       String
+  templateKey   String
+  audienceQuery Json
+  status        EmailCampaignStatus @default(DRAFT)
+  scheduledFor  DateTime?
+  sentAt        DateTime?
+  sentCount     Int                 @default(0)
+  createdById   String
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  events        EmailEvent[]
+
+  @@index([status, scheduledFor])
+}
+
+enum EmailEventType {
+  SENT
+  OPENED
+  CLICKED
+  BOUNCED
+  UNSUBSCRIBED
+}
+
+// Per-recipient touchpoint. Open/click pixels can land here, plus our own
+// SENT writes from the campaign worker. UNSUBSCRIBED is recorded both when
+// /u/<token> resolves and when the user toggles opt-in off in the app.
+model EmailEvent {
+  id          String         @id @default(cuid())
+  campaignId  String?
+  campaign    EmailCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  userId      String
+  type        EmailEventType
+  metadata    Json?
+  createdAt   DateTime       @default(now())
+
+  @@index([campaignId, type])
+  @@index([userId, createdAt])
+}
+
 // One-click unsubscribe tokens. Long-lived (1 year) so the link in an email
 // the user opens months later still works. Hashed at rest like every other
 // token in the system; consumed flips the user's emailMarketingOptIn off.

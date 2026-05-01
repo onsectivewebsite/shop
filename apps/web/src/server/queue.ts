@@ -77,6 +77,23 @@ export function dataExportQueue(): Queue<DataExportQueueJob> {
   return _dataExportQueue;
 }
 
+export const EMAIL_CAMPAIGN_QUEUE_NAME = 'email-campaign';
+export const EMAIL_CAMPAIGN_SEND_JOB = 'send-email-campaign';
+
+export type EmailCampaignSendJob = {
+  campaignId: string;
+};
+
+let _emailCampaignQueue: Queue<EmailCampaignSendJob> | null = null;
+export function emailCampaignQueue(): Queue<EmailCampaignSendJob> {
+  if (!_emailCampaignQueue) {
+    _emailCampaignQueue = new Queue<EmailCampaignSendJob>(EMAIL_CAMPAIGN_QUEUE_NAME, {
+      connection: getRedisConnection(),
+    });
+  }
+  return _emailCampaignQueue;
+}
+
 /**
  * Fire-and-forget enqueue used by mutation paths. Swallows queue errors so a
  * Redis blip can't break product writes — the periodic full reindex covers
