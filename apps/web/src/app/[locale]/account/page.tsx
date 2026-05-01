@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Star,
   Receipt,
+  Sparkles,
   ArrowUpRight,
   type LucideIcon,
 } from 'lucide-react';
@@ -43,6 +44,7 @@ export default async function AccountPage({ params }: { params: { locale: string
           <AccountTile href="/account/organization" icon={Building2} title="Organization" sub="B2B accounts and team members" />
           <AccountTile href="/account/organization/invoices" icon={Receipt} title="Invoices" sub="NET-30 statements for your organisation" />
           <AccountTile href="/account/wishlist" icon={Heart} title="Wishlist" sub="Saved items you'll want again" />
+          <AccountTile href="/account/prime" icon={Sparkles} title="Prime" sub="Membership perks and renewal" />
         </div>
       </div>
     </div>
