@@ -23,6 +23,11 @@ export {
   consumeUnsubscribeToken,
   getEmailMarketingOptIn,
   setEmailMarketingOptIn,
+  awardCredit,
+  redeemCredit,
+  refundCredit,
+  getCreditBalance,
+  getCreditBalances,
 } from '@onsective/auth';
 export type { LoginMethod, LoginContext, ReferralStats } from '@onsective/auth';
 export {

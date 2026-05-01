@@ -22,10 +22,10 @@ export function ReferralsManager({ baseUrl }: { baseUrl: string }) {
   if (q.error) return <p className="text-sm text-error-600">{q.error.message}</p>;
   if (!q.data) return null;
 
-  const { code, stats } = q.data;
+  const { code, stats, balances } = q.data;
   const shareUrl = `${baseUrl}/r/${code}`;
   const shareMessage = `I'm shopping on Onsective — use my link for member perks: ${shareUrl}`;
-  const currency = stats.currency ?? 'USD';
+  const currency = stats.currency ?? balances[0]?.currency ?? 'USD';
 
   async function copyLink() {
     await navigator.clipboard.writeText(shareUrl);
@@ -109,12 +109,18 @@ export function ReferralsManager({ baseUrl }: { baseUrl: string }) {
         <Stat label="Signups" value={stats.signups.toString()} />
         <Stat label="Made a purchase" value={stats.qualifyingOrders.toString()} />
         <Stat
-          label="Earned"
-          value={formatMoney(stats.earnedMinor, currency)}
+          label="Available credit"
+          value={
+            balances.length === 0
+              ? formatMoney(0, currency)
+              : balances
+                  .map((b) => formatMoney(b.amountMinor, b.currency))
+                  .join(' · ')
+          }
           hint={
-            stats.pendingPayoutMinor > 0
-              ? `${formatMoney(stats.pendingPayoutMinor, currency)} pending payout`
-              : undefined
+            balances.length > 0
+              ? 'Applies automatically at checkout'
+              : 'Earn credit when a friend places their first order'
           }
         />
       </div>
@@ -125,11 +131,12 @@ export function ReferralsManager({ baseUrl }: { baseUrl: string }) {
           <ol className="list-decimal space-y-1 pl-5">
             <li>Share your link or code with anyone you'd recommend Onsective to.</li>
             <li>They sign up via your link.</li>
-            <li>When they place their first order, you earn a credit.</li>
+            <li>When they place their first order, your account is credited.</li>
+            <li>The credit applies automatically at your next checkout.</li>
           </ol>
           <p className="text-xs text-slate-500">
-            Self-referrals don't count. Earnings are paid out to your account once
-            verified — typically within 7 days of the qualifying order.
+            Self-referrals don't count. Credit is currency-specific — USD orders
+            spend USD credit, INR orders spend INR.
           </p>
         </CardContent>
       </Card>

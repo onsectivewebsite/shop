@@ -79,6 +79,8 @@ model User {
   suspiciousLoginTokens SuspiciousLoginToken[]
   referralCode   ReferralCode?
   referralAttribution ReferralAttribution? @relation("ReferredUser")
+  creditBalances UserCreditBalance[]
+  creditTransactions UserCreditTransaction[]
   unsubscribeTokens UnsubscribeToken[]
   dataExportJobs DataExportJob[]
   passkeys       Passkey[]
@@ -212,6 +214,49 @@ model ReferralAttribution {
 
   @@index([codeId])
   @@index([signedUpAt])
+}
+
+// Per-user credit balance, partitioned by currency. Updated atomically by
+// the credit helpers — never write to this row directly. The actual ledger
+// lives in UserCreditTransaction; this is a denorm cache so checkout doesn't
+// have to sum the ledger on every render.
+model UserCreditBalance {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency    String
+  amountMinor Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, currency])
+  @@index([userId])
+}
+
+enum UserCreditTxType {
+  AWARD
+  REDEEM
+  REFUND
+  ADJUST
+}
+
+// Append-only ledger for the credit balance. Every write adds a row and
+// adjusts UserCreditBalance.amountMinor in the same transaction. Idempotent
+// against (sourceType, sourceId, type) — webhook replays and retried award
+// calls don't double-credit.
+model UserCreditTransaction {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        UserCreditTxType
+  amountMinor Int
+  currency    String
+  sourceType  String
+  sourceId    String
+  note        String?
+  createdAt   DateTime         @default(now())
+
+  @@unique([sourceType, sourceId, type])
+  @@index([userId, createdAt])
 }
 
 enum EmailCampaignStatus {

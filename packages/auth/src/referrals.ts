@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { prisma } from '@onsective/db';
+import { awardCredit } from './credits';
 
 // Crockford-base32 minus 0/O/1/I/L. 28 letters, ~4.8 bits per char, 8 chars
 // → ~38 bits of entropy. With unique-index retry the collision risk is
@@ -132,14 +133,34 @@ export async function awardReferralOnFirstOrder(args: {
   currency: string;
   payoutMinor?: number;
 }): Promise<number> {
+  const payoutMinor = args.payoutMinor ?? DEFAULT_PAYOUT_MINOR;
   const result = await prisma.referralAttribution.updateMany({
     where: { referredUserId: args.buyerId, firstOrderId: null },
     data: {
       firstOrderId: args.orderId,
-      payoutMinor: args.payoutMinor ?? DEFAULT_PAYOUT_MINOR,
+      payoutMinor,
       payoutCurrency: args.currency,
     },
   });
+  if (result.count === 0) return 0;
+
+  // Look up the referrer + the attribution row id we just stamped, so the
+  // credit ledger can key off it. The above updateMany doesn't return rows
+  // in Prisma; one extra read is the cost of staying idempotent.
+  const attribution = await prisma.referralAttribution.findUnique({
+    where: { referredUserId: args.buyerId },
+    select: { id: true, code: { select: { userId: true } } },
+  });
+  if (attribution) {
+    await awardCredit({
+      userId: attribution.code.userId,
+      amountMinor: payoutMinor,
+      currency: args.currency,
+      sourceType: 'referral',
+      sourceId: attribution.id,
+      note: `Referral payout from order ${args.orderId}`,
+    });
+  }
   return result.count;
 }
 

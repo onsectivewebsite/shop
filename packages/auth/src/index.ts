@@ -39,3 +39,10 @@ export {
   getEmailMarketingOptIn,
   setEmailMarketingOptIn,
 } from './email-consent';
+export {
+  awardCredit,
+  redeemCredit,
+  refundCredit,
+  getCreditBalance,
+  getCreditBalances,
+} from './credits';
