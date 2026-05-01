@@ -5,15 +5,19 @@ import { prisma } from '../db';
 import { getStripe } from '../stripe';
 
 /**
- * Onsective Prime — Phase 5 stub.
+ * Onsective Prime — paid membership.
  *
- * Full feature is multi-week (pricing config per market, family sharing,
- * gifting, retention flows). This module ships:
+ * Surface here:
  *   - status query — buyer-side check used by checkout for free shipping
- *   - subscribe mutation — creates Stripe subscription + persists membership
- *   - cancel mutation — flags cancelled-at-period-end via Stripe
- * Webhook routing for `customer.subscription.*` to update PrimeStatus is
- * also TODO — without it, status drifts on payment failures.
+ *   - startCheckout — Stripe Checkout session for signup
+ *   - cancel — flags cancelled-at-period-end via Stripe
+ *
+ * Subscription lifecycle (created / updated / deleted, payment failures)
+ * is handled by `handleSubscriptionUpdated` + `handleInvoicePaymentFailed`
+ * in `apps/web/src/server/webhooks/stripe-handlers.ts`.
+ *
+ * Still post-launch work: pricing config per market, family sharing,
+ * gifting, retention flows.
  */
 
 const PRIME_PRICE_IDS = {
