@@ -7,6 +7,7 @@ const CARD_SIZES = '(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw';
 import { prisma } from '@/server/db';
 import { getSession } from '@/server/auth/session';
 import { WishlistHeart } from '@/components/wishlist-heart';
+import { WishlistShareCard } from '@/components/account/wishlist-share-card';
 
 export const metadata = { title: 'Wishlist' };
 export const dynamic = 'force-dynamic';
@@ -74,6 +75,16 @@ export default async function WishlistPage({ params }: { params: { locale: strin
           {live.length} saved item{live.length === 1 ? '' : 's'}.
         </p>
       </div>
+
+      {live.length > 0 && (
+        <div className="mt-8 max-w-2xl">
+          <WishlistShareCard
+            baseUrl={
+              process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+            }
+          />
+        </div>
+      )}
 
       {live.length === 0 ? (
         <div className="mt-12 rounded-3xl border border-dashed border-stone-300 bg-white p-12 text-center">

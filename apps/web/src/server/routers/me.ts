@@ -2,6 +2,11 @@ import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc';
 import { prisma } from '../db';
 import { getEmailMarketingOptIn, setEmailMarketingOptIn } from '../auth';
+import {
+  getOrCreateWishlistShare,
+  setWishlistShareVisibility,
+  setWishlistShareDisplayName,
+} from '../wishlist-share';
 
 const addressInput = z.object({
   type: z.enum(['SHIPPING', 'BILLING', 'PICKUP']).default('SHIPPING'),
@@ -46,6 +51,24 @@ export const meRouter = router({
     .mutation(async ({ ctx, input }) => {
       return prisma.user.update({ where: { id: ctx.user.id }, data: input });
     }),
+
+  wishlistShare: router({
+    get: protectedProcedure.query(async ({ ctx }) => {
+      return getOrCreateWishlistShare(ctx.user.id);
+    }),
+    setVisibility: protectedProcedure
+      .input(z.object({ isPublic: z.boolean() }))
+      .mutation(async ({ ctx, input }) => {
+        await setWishlistShareVisibility(ctx.user.id, input.isPublic);
+        return { ok: true };
+      }),
+    setDisplayName: protectedProcedure
+      .input(z.object({ displayName: z.string().trim().max(60).nullable() }))
+      .mutation(async ({ ctx, input }) => {
+        await setWishlistShareDisplayName(ctx.user.id, input.displayName);
+        return { ok: true };
+      }),
+  }),
 
   notifications: router({
     get: protectedProcedure.query(async ({ ctx }) => {

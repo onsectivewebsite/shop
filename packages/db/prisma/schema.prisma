@@ -81,6 +81,7 @@ model User {
   referralAttribution ReferralAttribution? @relation("ReferredUser")
   creditBalances UserCreditBalance[]
   creditTransactions UserCreditTransaction[]
+  wishlistShare  WishlistShare?
   unsubscribeTokens UnsubscribeToken[]
   dataExportJobs DataExportJob[]
   passkeys       Passkey[]
@@ -641,6 +642,24 @@ model WishlistItem {
 
   @@unique([userId, productId])
   @@index([userId, createdAt])
+}
+
+// Public share link for a user's wishlist. Lazy-minted on first toggle-on,
+// then kept across enable/disable so the URL stays stable for repeat shares.
+// `slug` is a 10-char base32 random — long enough to be unguessable, short
+// enough to share verbally. `isPublic` gates visibility without rotating.
+model WishlistShare {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug      String   @unique
+  isPublic  Boolean  @default(true)
+  viewCount Int      @default(0)
+  // Display name override — empty falls back to the user's first name. Lets
+  // a user share as "Maya" when their full name is "Maya R. Sanchez".
+  displayName String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Variant {
