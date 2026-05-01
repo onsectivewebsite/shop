@@ -123,20 +123,20 @@ export function InvoiceDetail({
       </dl>
 
       <div className="mt-10 flex flex-wrap gap-3 print:hidden">
-        <button
-          onClick={() => window.print()}
+        <a
+          href={`/api/invoices/${invoiceId}/pdf`}
+          target="_blank"
+          rel="noopener"
           className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
         >
-          Print / save as PDF
+          Download PDF
+        </a>
+        <button
+          onClick={() => window.print()}
+          className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          Print
         </button>
-        {inv.pdfUrl && (
-          <a
-            href={inv.pdfUrl}
-            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Download PDF
-          </a>
-        )}
       </div>
     </article>
   );
