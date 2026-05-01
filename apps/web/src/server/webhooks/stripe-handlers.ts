@@ -1,5 +1,6 @@
 import type Stripe from 'stripe';
 import { prisma } from '../db';
+import { awardReferralOnFirstOrder } from '../auth';
 
 /**
  * Event handlers — one per Stripe event type we care about.
@@ -125,6 +126,26 @@ export async function handlePaymentIntentSucceeded(event: Stripe.Event) {
       },
     });
   });
+
+  // Side-effect outside the transaction so a referral-write failure can't
+  // poison the payment-capture commit. Idempotent on (referredUserId,
+  // firstOrderId IS NULL) — webhook replays are safe.
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { buyerId: true, currency: true },
+    });
+    if (order) {
+      await awardReferralOnFirstOrder({
+        buyerId: order.buyerId,
+        orderId,
+        currency: order.currency,
+      });
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[referrals] award on first order failed:', err);
+  }
 }
 
 export async function handlePaymentIntentFailed(event: Stripe.Event) {

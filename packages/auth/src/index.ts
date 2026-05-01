@@ -28,6 +28,7 @@ export {
   getOrMintReferralCode,
   getReferralStats,
   recordAttribution,
+  awardReferralOnFirstOrder,
   REFERRAL_COOKIE_NAME,
   REFERRAL_COOKIE_TTL_DAYS,
 } from './referrals';

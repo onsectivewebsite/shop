@@ -114,6 +114,35 @@ export async function getReferralStats(userId: string): Promise<ReferralStats> {
   };
 }
 
+// Default referrer payout when an attributed user places their first paid
+// order. Override via `REFERRAL_PAYOUT_MINOR` env (e.g. `750` = $7.50).
+const DEFAULT_PAYOUT_MINOR = Number(process.env.REFERRAL_PAYOUT_MINOR ?? 500);
+
+/**
+ * Awards the referrer when a buyer's first order lands. Idempotent — uses
+ * `updateMany` with a `firstOrderId: null` predicate so a webhook replay
+ * (or a same-buyer second order) doesn't double-credit.
+ *
+ * Returns the number of attributions actually awarded (0 or 1) so the
+ * caller can log the outcome without an extra read.
+ */
+export async function awardReferralOnFirstOrder(args: {
+  buyerId: string;
+  orderId: string;
+  currency: string;
+  payoutMinor?: number;
+}): Promise<number> {
+  const result = await prisma.referralAttribution.updateMany({
+    where: { referredUserId: args.buyerId, firstOrderId: null },
+    data: {
+      firstOrderId: args.orderId,
+      payoutMinor: args.payoutMinor ?? DEFAULT_PAYOUT_MINOR,
+      payoutCurrency: args.currency,
+    },
+  });
+  return result.count;
+}
+
 /**
  * Records that a newly-signed-up user came in via a referral code. Caller
  * resolves the code from the cookie (or wherever) and passes both ids in.

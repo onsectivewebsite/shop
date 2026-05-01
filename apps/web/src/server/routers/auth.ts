@@ -1,5 +1,6 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
+import { cookies } from 'next/headers';
 import { router, publicProcedure, protectedProcedure, authRateLimit } from '../trpc';
 import {
   startRegistration,
@@ -23,6 +24,8 @@ import {
   regenerateRecoveryCodes,
   recoveryCodesStatus,
   consumeRecoveryCode,
+  recordAttribution,
+  REFERRAL_COOKIE_NAME,
 } from '../auth';
 import {
   sendOtpEmail,
@@ -51,6 +54,26 @@ async function safeSend<T>(label: string, fn: () => Promise<T>): Promise<void> {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error(`[email] ${label} failed:`, err);
+  }
+}
+
+/**
+ * Reads the referral cookie set by /r/<code>, attempts attribution, then
+ * always clears the cookie so a stale value can't follow the user past
+ * their first verification. Failures are non-fatal — a referral that
+ * doesn't take must not block signup.
+ */
+async function consumeReferralCookie(referredUserId: string): Promise<void> {
+  const jar = cookies();
+  const cookie = jar.get(REFERRAL_COOKIE_NAME);
+  if (!cookie?.value) return;
+  try {
+    await recordAttribution({ code: cookie.value, referredUserId });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[referrals] attribution failed:', err);
+  } finally {
+    jar.delete(REFERRAL_COOKIE_NAME);
   }
 }
 
@@ -111,6 +134,7 @@ export const authRouter = router({
         where: { id: result.userId },
         data: { emailVerified: new Date(), lastLoginAt: new Date() },
       });
+      await consumeReferralCookie(result.userId);
       await createSession(result.userId, {
         ipAddress: ctx.ipAddress ?? undefined,
         userAgent: ctx.userAgent ?? undefined,
@@ -633,6 +657,12 @@ export const authRouter = router({
       const ua = ctx.userAgent ?? null;
       const now = new Date();
 
+      // Passwordless can be the user's first session — if their email isn't
+      // yet verified, they came through the magic-link signup flow and any
+      // referral cookie is theirs. After that we skip the attribution path
+      // because they're an existing user just signing in.
+      const firstTimeVerification = !user.emailVerified;
+
       await prisma.user.update({
         where: { id: result.userId },
         data: {
@@ -643,6 +673,10 @@ export const authRouter = router({
           failedLoginAttempts: 0,
         },
       });
+
+      if (firstTimeVerification) {
+        await consumeReferralCookie(result.userId);
+      }
 
       await createSession(result.userId, {
         ipAddress: ip ?? undefined,
