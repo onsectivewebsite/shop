@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc';
 import { prisma } from '../db';
+import { getEmailMarketingOptIn, setEmailMarketingOptIn } from '../auth';
 
 const addressInput = z.object({
   type: z.enum(['SHIPPING', 'BILLING', 'PICKUP']).default('SHIPPING'),
@@ -45,6 +46,20 @@ export const meRouter = router({
     .mutation(async ({ ctx, input }) => {
       return prisma.user.update({ where: { id: ctx.user.id }, data: input });
     }),
+
+  notifications: router({
+    get: protectedProcedure.query(async ({ ctx }) => {
+      return {
+        emailMarketingOptIn: await getEmailMarketingOptIn(ctx.user.id),
+      };
+    }),
+    setEmailMarketing: protectedProcedure
+      .input(z.object({ optIn: z.boolean() }))
+      .mutation(async ({ ctx, input }) => {
+        await setEmailMarketingOptIn(ctx.user.id, input.optIn);
+        return { ok: true };
+      }),
+  }),
 
   addresses: router({
     list: protectedProcedure.query(async ({ ctx }) => {

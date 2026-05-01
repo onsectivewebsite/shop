@@ -19,6 +19,10 @@ export {
   awardReferralOnFirstOrder,
   REFERRAL_COOKIE_NAME,
   REFERRAL_COOKIE_TTL_DAYS,
+  issueUnsubscribeToken,
+  consumeUnsubscribeToken,
+  getEmailMarketingOptIn,
+  setEmailMarketingOptIn,
 } from '@onsective/auth';
 export type { LoginMethod, LoginContext, ReferralStats } from '@onsective/auth';
 export {

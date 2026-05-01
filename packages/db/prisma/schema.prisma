@@ -54,6 +54,11 @@ model User {
   // Security
   twoFactorEmail Boolean    @default(true)  // require email OTP step on every password login
   twoFactorSms   Boolean    @default(false) // also dispatch the same 2FA code via SMS to phoneVerified number
+  // Email opt-in — transactional emails (OTP, order updates, security
+  // alerts) are exempt by law and ignore this flag. Marketing emails MUST
+  // honour it. Default-on for legacy users; signup will let new users opt in
+  // explicitly when we add a checkbox to the form.
+  emailMarketingOptIn Boolean @default(true)
   failedLoginAttempts Int   @default(0)
   lockedUntil    DateTime?  // soft lock after repeated failures
   lastLoginIp    String?
@@ -74,6 +79,7 @@ model User {
   suspiciousLoginTokens SuspiciousLoginToken[]
   referralCode   ReferralCode?
   referralAttribution ReferralAttribution? @relation("ReferredUser")
+  unsubscribeTokens UnsubscribeToken[]
   dataExportJobs DataExportJob[]
   passkeys       Passkey[]
   webauthnChallenges WebAuthnChallenge[]
@@ -206,6 +212,23 @@ model ReferralAttribution {
 
   @@index([codeId])
   @@index([signedUpAt])
+}
+
+// One-click unsubscribe tokens. Long-lived (1 year) so the link in an email
+// the user opens months later still works. Hashed at rest like every other
+// token in the system; consumed flips the user's emailMarketingOptIn off.
+model UnsubscribeToken {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // 'marketing' for now; reserved for future per-channel scopes (e.g. 'digest').
+  scope      String   @default("marketing")
+  tokenHash  String   @unique
+  consumedAt DateTime?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([userId, scope])
 }
 
 enum DataExportStatus {

@@ -33,3 +33,9 @@ export {
   REFERRAL_COOKIE_TTL_DAYS,
 } from './referrals';
 export type { ReferralStats } from './referrals';
+export {
+  issueUnsubscribeToken,
+  consumeUnsubscribeToken,
+  getEmailMarketingOptIn,
+  setEmailMarketingOptIn,
+} from './email-consent';

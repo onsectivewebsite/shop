@@ -10,6 +10,7 @@ import {
   Receipt,
   Sparkles,
   Gift,
+  Bell,
   ArrowUpRight,
   type LucideIcon,
 } from 'lucide-react';
@@ -47,6 +48,7 @@ export default async function AccountPage({ params }: { params: { locale: string
           <AccountTile href="/account/wishlist" icon={Heart} title="Wishlist" sub="Saved items you'll want again" />
           <AccountTile href="/account/prime" icon={Sparkles} title="Prime" sub="Membership perks and renewal" />
           <AccountTile href="/account/referrals" icon={Gift} title="Referrals" sub="Share Onsective and earn credit" />
+          <AccountTile href="/account/notifications" icon={Bell} title="Notifications" sub="Email preferences and unsubscribes" />
         </div>
       </div>
     </div>
