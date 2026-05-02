@@ -94,6 +94,8 @@ model User {
   primeMembership PrimeMembership?
   returns        Return[]
   organizationMemberships OrganizationMember[]
+  buyerConversations Conversation[] @relation("BuyerConversation")
+  sentMessages       Message[]      @relation("MessageAuthor")
 
   @@index([countryCode])
   @@index([status])
@@ -537,6 +539,7 @@ model Seller {
   ledgerEntries       LedgerEntry[]
   adCampaigns         AdCampaign[]
   returns             Return[]
+  conversations       Conversation[]
 
   @@index([countryCode])
   @@index([status])
@@ -906,6 +909,7 @@ model OrderItem {
 
   reviews         Review[]
   returns         Return[]
+  conversation    Conversation?
 
   @@index([orderId])
   @@index([sellerId, status])
@@ -1548,6 +1552,55 @@ model ProductQuestion {
   createdAt   DateTime @default(now())
 
   @@index([productId])
+}
+
+// One-to-one with OrderItem so each thread is anchored to a real, paid-for
+// purchase. Guarantees buyer↔seller messaging can't be used for unsolicited
+// outreach — the buyer can only message the seller of something they bought.
+// Read-cursor timestamps drive unread badges in the inbox.
+model Conversation {
+  id              String   @id @default(cuid())
+  orderItemId     String   @unique
+  orderItem       OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  buyerId         String
+  buyer           User     @relation("BuyerConversation", fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerId        String
+  seller          Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  // Stamped on every send. Drives inbox sort order and unread comparison.
+  lastMessageAt   DateTime?
+  // Per-side read cursors. NULL = never opened; an inbox UI compares
+  // (lastMessageAt > buyerLastReadAt) to flag unread without a per-message
+  // read-receipt table.
+  buyerLastReadAt  DateTime?
+  sellerLastReadAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  messages        Message[]
+
+  @@index([buyerId, lastMessageAt(sort: Desc)])
+  @@index([sellerId, lastMessageAt(sort: Desc)])
+}
+
+enum MessageAuthorRole {
+  BUYER
+  SELLER
+}
+
+model Message {
+  id              String   @id @default(cuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  authorRole      MessageAuthorRole
+  // User id of the sender. Stored separately from authorRole because either
+  // side could in principle be impersonated by ops in the future, and we
+  // want the audit trail to point at a real actor.
+  authorId        String
+  author          User     @relation("MessageAuthor", fields: [authorId], references: [id])
+  body            String   @db.Text
+  createdAt       DateTime @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 // ============================================================================

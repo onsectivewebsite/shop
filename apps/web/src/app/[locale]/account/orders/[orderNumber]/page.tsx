@@ -5,6 +5,7 @@ import { getSession } from '@/server/auth';
 import { prisma } from '@/server/db';
 import { formatMoney } from '@/lib/utils';
 import { RequestReturnButton } from '@/components/account/request-return-button';
+import { MessageSellerButton } from '@/components/account/message-seller-button';
 
 export const metadata = { title: 'Order details' };
 export const dynamic = 'force-dynamic';
@@ -116,11 +117,12 @@ export default async function BuyerOrderDetailPage({
                           Refunded under {completedReturn.rmaNumber}
                         </p>
                       )}
-                      {canRequest && (
-                        <div className="mt-3">
+                      <div className="mt-3 flex flex-wrap items-center gap-4">
+                        {canRequest && (
                           <RequestReturnButton orderItemId={item.id} maxQty={item.qty} />
-                        </div>
-                      )}
+                        )}
+                        <MessageSellerButton orderItemId={item.id} />
+                      </div>
                     </div>
                   </li>
                 );
