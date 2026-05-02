@@ -22,6 +22,7 @@
     "cron:email-campaigns": "tsx scripts/cron-email-campaigns.ts",
     "cron:fx-rates": "tsx scripts/cron-fx-rates.ts",
     "cron:cart-recovery": "tsx scripts/cron-cart-recovery.ts",
+    "cron:low-stock": "tsx scripts/cron-low-stock.ts",
     "reindex:search": "tsx scripts/reindex-search.ts"
   },
   "dependencies": {

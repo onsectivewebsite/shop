@@ -238,6 +238,78 @@ export async function sendReviewPromptEmail(
 }
 
 /**
+ * Weekly low-stock digest for a single seller. Bundles every variant of
+ * theirs that's at or under its reorder point so they get one focused
+ * email instead of one per SKU. Transactional (account-state notification),
+ * not marketing — fired regardless of opt-in.
+ */
+export async function sendLowStockDigestEmail(
+  to: string,
+  meta: {
+    sellerName: string;
+    rows: Array<{
+      productTitle: string;
+      variantLabel: string | null;
+      sku: string;
+      available: number;
+      reorderPoint: number;
+      productSlug: string;
+    }>;
+  },
+): Promise<void> {
+  if (meta.rows.length === 0) return;
+  const sellerBase =
+    process.env.NEXT_PUBLIC_SELLER_URL ?? 'https://seller.itsnottechy.cloud';
+
+  const text =
+    `Low stock on ${meta.rows.length} item${meta.rows.length === 1 ? '' : 's'}:\n\n` +
+    meta.rows
+      .map(
+        (r) =>
+          `· ${r.productTitle}${r.variantLabel ? ` (${r.variantLabel})` : ''} — ` +
+          `SKU ${r.sku} — ${r.available} left (reorder at ${r.reorderPoint})`,
+      )
+      .join('\n') +
+    `\n\nReplenish: ${sellerBase}/dashboard/products`;
+
+  const rows = meta.rows
+    .map(
+      (r) => `<tr>
+        <td style="padding:6px 0;font-size:14px;color:#334155;">
+          ${escapeHtml(r.productTitle)}${r.variantLabel ? `<span style="color:#94a3b8;"> · ${escapeHtml(r.variantLabel)}</span>` : ''}
+          <br/><span style="font-family:monospace;font-size:12px;color:#94a3b8;">${escapeHtml(r.sku)}</span>
+        </td>
+        <td style="padding:6px 0 6px 12px;font-size:14px;text-align:right;color:#b45309;font-weight:600;font-variant-numeric:tabular-nums;">
+          ${r.available} left
+        </td>
+        <td style="padding:6px 0 6px 12px;font-size:12px;text-align:right;color:#94a3b8;font-variant-numeric:tabular-nums;">
+          reorder at ${r.reorderPoint}
+        </td>
+      </tr>`,
+    )
+    .join('');
+
+  await send({
+    to,
+    subject:
+      meta.rows.length === 1
+        ? `Low stock: ${meta.rows[0]!.productTitle}`
+        : `${meta.rows.length} items low on stock`,
+    text,
+    html: shell(
+      `${meta.rows.length} item${meta.rows.length === 1 ? '' : 's'} need restocking`,
+      `<p>Hi ${escapeHtml(meta.sellerName)},</p>
+       <p>The items below have hit their reorder point. Replenish to keep listings active and avoid lost sales.</p>
+       <table cellpadding="0" cellspacing="0" style="width:100%;margin:16px 0;border-collapse:collapse;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">
+         ${rows}
+       </table>
+       <p style="margin: 20px 0;"><a href="${sellerBase}/dashboard/products" style="display:inline-block;background:#047857;color:white;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:600;font-size:14px;">Manage inventory</a></p>
+       <p style="font-size: 12px; color: #94a3b8;">This is a transactional account alert. We'll re-send weekly while items stay low.</p>`,
+    ),
+  });
+}
+
+/**
  * Cart-abandonment recovery email. Marketing-class — only fired by the
  * cart-recovery cron after gating on the buyer's emailMarketingOptIn flag.
  */

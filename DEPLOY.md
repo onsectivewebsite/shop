@@ -75,6 +75,7 @@ These are **not** part of the web server. Run them as their own k8s Deployments 
 | Ads daily reset | `pnpm --filter @onsective/web cron:ads-reset` | Schedule **hourly** (cron job, EventBridge, k8s CronJob) |
 | FX rates | `pnpm --filter @onsective/web cron:fx-rates` | Schedule **daily**. Needs `OPENEXCHANGERATES_APP_ID` env. Stale-guard refuses cross-currency credit conversion if rates fall behind by 7+ days. |
 | Cart recovery | `pnpm --filter @onsective/web cron:cart-recovery` | Schedule **daily**. Emails buyers with carts untouched 24h–7d, gated on `User.emailMarketingOptIn`. One nudge per cart, ever. |
+| Low-stock alerts | `pnpm --filter @onsective/web cron:low-stock` | Schedule **daily**. Per-seller digest of variants at or under their `reorderPoint`. Bumps `Variant.lowStockEmailedAt` per send; re-eligible after 7 days so a SKU that stays low keeps surfacing weekly. |
 | Full search reindex | `pnpm --filter @onsective/web reindex:search` | One-shot — run after schema changes or on first OpenSearch turn-up |
 
 Each is meant to scale horizontally — BullMQ handles concurrency.
