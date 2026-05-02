@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Wrench,
   ShieldCheck,
+  Flag,
 } from 'lucide-react';
 import { cn } from '@onsective/ui';
 
@@ -32,6 +33,7 @@ const SECTIONS = [
       { href: '/dashboard/tickets', label: 'Tickets', icon: Inbox },
       { href: '/dashboard/disputes', label: 'Disputes', icon: AlertTriangle },
       { href: '/dashboard/returns', label: 'Returns', icon: RotateCcw },
+      { href: '/dashboard/messages', label: 'Flagged messages', icon: Flag },
       { href: '/dashboard/approvals', label: 'Approvals', icon: ShieldCheck },
     ],
   },

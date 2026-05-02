@@ -1603,9 +1603,43 @@ model Message {
   authorId        String
   author          User     @relation("MessageAuthor", fields: [authorId], references: [id])
   body            String   @db.Text
+  // Set by console moderation when the message is taken down. Body is kept
+  // intact in the row for audit but the buyer/seller surfaces render a
+  // placeholder ("Hidden by moderation") in its place.
+  isHidden        Boolean  @default(false)
+  hiddenReason    String?
   createdAt       DateTime @default(now())
 
+  reports         MessageReport[]
+
   @@index([conversationId, createdAt])
+  @@index([isHidden, createdAt])
+}
+
+enum MessageReportReason {
+  SPAM
+  OFFENSIVE
+  HARASSMENT
+  SCAM
+  OTHER
+}
+
+// Either side can report a message in their thread. Unique pair stops a
+// reporter from spamming flags on the same message; aggregation in the
+// console queue surfaces a per-message flag count + reason histogram.
+model MessageReport {
+  id          String              @id @default(cuid())
+  messageId   String
+  message     Message             @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  reporterId  String
+  reporterRole MessageAuthorRole  // BUYER | SELLER — who flagged
+  reason      MessageReportReason
+  note        String?
+  createdAt   DateTime            @default(now())
+
+  @@unique([messageId, reporterId])
+  @@index([messageId])
+  @@index([createdAt])
 }
 
 // ============================================================================

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { Button, Card, CardContent } from '@onsective/ui';
 import { trpc } from '@/lib/trpc';
+import { ReportMessageMenu } from '@/components/account/report-message-menu';
 
 const BODY_MAX = 2000;
 
@@ -92,26 +93,40 @@ export default function BuyerThreadPage() {
           )}
           {t.messages.map((m) => {
             const mine = m.authorRole === 'BUYER';
+            const hidden = m.body === '[Hidden by moderation]';
             return (
               <div
                 key={m.id}
                 className={`flex ${mine ? 'justify-end' : 'justify-start'}`}
               >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
-                    mine
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-slate-100 text-slate-900'
-                  }`}
-                >
-                  <p className="whitespace-pre-line">{m.body}</p>
-                  <p
-                    className={`mt-1 text-[11px] ${
-                      mine ? 'text-slate-300' : 'text-slate-500'
+                <div className="max-w-[80%] space-y-1">
+                  <div
+                    className={`rounded-2xl px-4 py-2 text-sm ${
+                      hidden
+                        ? 'border border-dashed border-slate-300 bg-slate-50 italic text-slate-500'
+                        : mine
+                          ? 'bg-slate-900 text-white'
+                          : 'bg-slate-100 text-slate-900'
                     }`}
                   >
-                    {new Date(m.createdAt).toLocaleString()}
-                  </p>
+                    <p className="whitespace-pre-line">{m.body}</p>
+                    <p
+                      className={`mt-1 text-[11px] ${
+                        hidden
+                          ? 'text-slate-400'
+                          : mine
+                            ? 'text-slate-300'
+                            : 'text-slate-500'
+                      }`}
+                    >
+                      {new Date(m.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  {!mine && !hidden && (
+                    <div className="flex justify-start">
+                      <ReportMessageMenu messageId={m.id} />
+                    </div>
+                  )}
                 </div>
               </div>
             );

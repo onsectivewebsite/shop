@@ -97,6 +97,7 @@ export const messagesRouter = router({
               id: true,
               authorRole: true,
               body: true,
+              isHidden: true,
               createdAt: true,
             },
           },
@@ -110,7 +111,15 @@ export const messagesRouter = router({
         data: { buyerLastReadAt: new Date() },
       });
 
-      return conv;
+      // Scrub hidden bodies before they leave the server. The row is kept
+      // in the DB for moderation audit but the buyer surface gets a
+      // placeholder so the thread visually reflects the takedown.
+      return {
+        ...conv,
+        messages: conv.messages.map((m) =>
+          m.isHidden ? { ...m, body: '[Hidden by moderation]' } : m,
+        ),
+      };
     }),
 
   /**
@@ -204,5 +213,46 @@ export const messagesRouter = router({
         bodyPreview: input.body,
       });
       return { id: message.id, createdAt: message.createdAt };
+    }),
+
+  /**
+   * Flag a message in a conversation the buyer is part of. Idempotent on
+   * (messageId, reporterId) so a duplicate click swallows the P2002 and
+   * the UI just shows "Reported".
+   */
+  report: protectedProcedure
+    .use(userMutationRateLimit)
+    .input(
+      z.object({
+        messageId: z.string(),
+        reason: z.enum(['SPAM', 'OFFENSIVE', 'HARASSMENT', 'SCAM', 'OTHER']),
+        note: z.string().trim().max(500).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Confirm the buyer is a participant in the message's conversation.
+      const message = await prisma.message.findFirst({
+        where: {
+          id: input.messageId,
+          conversation: { buyerId: ctx.user.id },
+        },
+        select: { id: true },
+      });
+      if (!message) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      try {
+        await prisma.messageReport.create({
+          data: {
+            messageId: message.id,
+            reporterId: ctx.user.id,
+            reporterRole: 'BUYER',
+            reason: input.reason,
+            note: input.note,
+          },
+        });
+      } catch (err: unknown) {
+        if ((err as { code?: string }).code !== 'P2002') throw err;
+      }
+      return { ok: true };
     }),
 });
