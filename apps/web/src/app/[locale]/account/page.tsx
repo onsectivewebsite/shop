@@ -14,6 +14,7 @@ import {
   CreditCard,
   Repeat,
   MessageCircle,
+  LifeBuoy,
   ArrowUpRight,
   type LucideIcon,
 } from 'lucide-react';
@@ -45,6 +46,7 @@ export default async function AccountPage({ params }: { params: { locale: string
           <AccountTile href="/account/orders" icon={Package} title="Orders" sub="Track shipments and view history" />
           <AccountTile href="/account/buy-again" icon={Repeat} title="Buy again" sub="Re-order anything you've bought before" />
           <AccountTile href="/account/messages" icon={MessageCircle} title="Messages" sub="Conversations with your sellers" />
+          <AccountTile href="/account/support" icon={LifeBuoy} title="Support" sub="Get help with orders, refunds, or account issues" />
           <AccountTile href="/account/passkeys" icon={KeyRound} title="Passkeys" sub="Faster sign-in with your device" />
           <AccountTile href="/account/security" icon={ShieldCheck} title="Security" sub="Recovery codes and account safety" />
           <AccountTile href="/account/reviews" icon={Star} title="Reviews" sub="Reviews you've left across the marketplace" />

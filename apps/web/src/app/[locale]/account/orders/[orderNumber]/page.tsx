@@ -4,6 +4,7 @@ import { Badge, Card, CardContent } from '@onsective/ui';
 import { getSession } from '@/server/auth';
 import { prisma } from '@/server/db';
 import { formatMoney } from '@/lib/utils';
+import Link from 'next/link';
 import { RequestReturnButton } from '@/components/account/request-return-button';
 import { MessageSellerButton } from '@/components/account/message-seller-button';
 
@@ -45,6 +46,12 @@ export default async function BuyerOrderDetailPage({
             <p className="text-sm text-slate-600">
               Placed {(order.placedAt ?? order.createdAt).toLocaleString()}
             </p>
+            <Link
+              href={`/account/support/new?order=${order.orderNumber}`}
+              className="ml-auto text-sm font-medium text-cta-700 hover:underline"
+            >
+              Get help with this order →
+            </Link>
           </div>
         </header>
 
