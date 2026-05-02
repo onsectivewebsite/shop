@@ -59,6 +59,10 @@ model User {
   // honour it. Default-on for legacy users; signup will let new users opt in
   // explicitly when we add a checkbox to the form.
   emailMarketingOptIn Boolean @default(true)
+  // Stripe Customer id, lazy-created the first time the user adds a saved
+  // payment method or starts a Prime/checkout flow. Shared across surfaces
+  // so a user has exactly one Customer record on Stripe.
+  stripeCustomerId String?  @unique
   failedLoginAttempts Int   @default(0)
   lockedUntil    DateTime?  // soft lock after repeated failures
   lastLoginIp    String?
