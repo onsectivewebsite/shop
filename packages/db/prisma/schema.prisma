@@ -673,10 +673,21 @@ model WishlistItem {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   productId String
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Snapshot of the cheapest active variant's price at the moment the
+  // item was wishlisted (and re-baselined after each drop notification).
+  // Drives the price-drop digest cron — a drop is "current min < this * 0.9".
+  // Null on legacy rows added before the column existed; the cron skips them.
+  priceAtSaveMinor Int?
+  priceCurrency    String?
+  // Idempotency / throttle stamp for the price-drop digest cron. Prevents
+  // notifying again within the cooldown window even when a fresh drop
+  // would otherwise re-qualify.
+  dropEmailedAt DateTime?
   createdAt DateTime @default(now())
 
   @@unique([userId, productId])
   @@index([userId, createdAt])
+  @@index([priceAtSaveMinor, dropEmailedAt])
 }
 
 // Public share link for a user's wishlist. Lazy-minted on first toggle-on,

@@ -238,6 +238,78 @@ export async function sendReviewPromptEmail(
 }
 
 /**
+ * Per-buyer wishlist price-drop digest. Bundles every wishlisted item
+ * that's now ≥10% cheaper than the buyer's last-recorded baseline.
+ * Marketing-class — only fired by the digest cron after gating on the
+ * buyer's emailMarketingOptIn flag.
+ */
+export async function sendPriceDropDigestEmail(
+  to: string,
+  meta: {
+    rows: Array<{
+      productTitle: string;
+      productSlug: string;
+      wasMinor: number;
+      nowMinor: number;
+      currency: string;
+    }>;
+  },
+): Promise<void> {
+  if (meta.rows.length === 0) return;
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://itsnottechy.cloud';
+
+  const fmt = (minor: number, currency: string) =>
+    new Intl.NumberFormat('en', { style: 'currency', currency }).format(minor / 100);
+
+  const text =
+    `Items on your wishlist just dropped in price:\n\n` +
+    meta.rows
+      .map((r) => {
+        const pctOff = Math.round(((r.wasMinor - r.nowMinor) / r.wasMinor) * 100);
+        return (
+          `· ${r.productTitle}\n` +
+          `  was ${fmt(r.wasMinor, r.currency)}, now ${fmt(r.nowMinor, r.currency)} ` +
+          `(${pctOff}% off): ${base}/product/${r.productSlug}`
+        );
+      })
+      .join('\n\n');
+
+  const rows = meta.rows
+    .map((r) => {
+      const pctOff = Math.round(((r.wasMinor - r.nowMinor) / r.wasMinor) * 100);
+      return `<tr>
+        <td style="padding:8px 0;font-size:14px;color:#334155;">
+          <a href="${base}/product/${r.productSlug}" style="color:#0f172a;font-weight:600;text-decoration:none;">${escapeHtml(r.productTitle)}</a>
+          <br/><span style="color:#94a3b8;font-size:12px;">
+            <span style="text-decoration:line-through;">${fmt(r.wasMinor, r.currency)}</span>
+            <span style="color:#047857;font-weight:600;margin-left:6px;">${fmt(r.nowMinor, r.currency)}</span>
+            <span style="background:#d1fae5;color:#047857;padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:600;">−${pctOff}%</span>
+          </span>
+        </td>
+      </tr>`;
+    })
+    .join('');
+
+  await send({
+    to,
+    subject:
+      meta.rows.length === 1
+        ? `Price drop: ${meta.rows[0]!.productTitle}`
+        : `${meta.rows.length} wishlist items dropped in price`,
+    text,
+    html: shell(
+      meta.rows.length === 1 ? 'A wishlist item just dropped' : 'Wishlist items dropped',
+      `<p>Good news — ${meta.rows.length === 1 ? 'an item' : 'a few items'} on your wishlist ${meta.rows.length === 1 ? 'is' : 'are'} now cheaper than when you saved ${meta.rows.length === 1 ? 'it' : 'them'}.</p>
+       <table cellpadding="0" cellspacing="0" style="width:100%;margin:16px 0;border-collapse:collapse;">
+         ${rows}
+       </table>
+       <p style="margin: 20px 0;"><a href="${base}/account/wishlist" style="display:inline-block;background:#0f172a;color:white;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:600;font-size:14px;">View wishlist</a></p>
+       <p style="font-size: 12px; color: #94a3b8;">Don't want these reminders? <a href="${base}/account/notifications" style="color:#94a3b8;text-decoration:underline;">Manage email preferences</a>.</p>`,
+    ),
+  });
+}
+
+/**
  * Weekly low-stock digest for a single seller. Bundles every variant of
  * theirs that's at or under its reorder point so they get one focused
  * email instead of one per SKU. Transactional (account-state notification),

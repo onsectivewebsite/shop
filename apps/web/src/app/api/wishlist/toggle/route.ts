@@ -29,17 +29,34 @@ export async function POST(req: Request) {
     return NextResponse.json({ saved: false });
   }
 
-  // Verify the product exists + is active before saving (no orphans).
+  // Verify the product exists + is active before saving (no orphans). Pull
+  // the cheapest active variant to snapshot a price baseline that the
+  // price-drop digest cron measures against.
   const product = await prisma.product.findUnique({
     where: { id: body.productId },
-    select: { id: true, status: true },
+    select: {
+      id: true,
+      status: true,
+      variants: {
+        where: { isActive: true },
+        orderBy: { priceAmount: 'asc' },
+        take: 1,
+        select: { priceAmount: true, currency: true },
+      },
+    },
   });
   if (!product) {
     return NextResponse.json({ error: 'Product not found.' }, { status: 404 });
   }
+  const cheapest = product.variants[0];
 
   await prisma.wishlistItem.create({
-    data: { userId: session.user.id, productId: product.id },
+    data: {
+      userId: session.user.id,
+      productId: product.id,
+      priceAtSaveMinor: cheapest?.priceAmount ?? null,
+      priceCurrency: cheapest?.currency ?? null,
+    },
   });
   return NextResponse.json({ saved: true });
 }

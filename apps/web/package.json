@@ -23,6 +23,7 @@
     "cron:fx-rates": "tsx scripts/cron-fx-rates.ts",
     "cron:cart-recovery": "tsx scripts/cron-cart-recovery.ts",
     "cron:low-stock": "tsx scripts/cron-low-stock.ts",
+    "cron:price-drops": "tsx scripts/cron-price-drops.ts",
     "reindex:search": "tsx scripts/reindex-search.ts"
   },
   "dependencies": {
