@@ -110,7 +110,12 @@ export default async function ProductPage({ params }: Props) {
             </div>
             <p className="text-sm text-slate-600">
               Sold by{' '}
-              <span className="font-medium text-slate-900">{product.seller.displayName}</span>
+              <Link
+                href={`/${params.locale}/seller/${product.seller.slug}`}
+                className="font-medium text-slate-900 hover:underline"
+              >
+                {product.seller.displayName}
+              </Link>
               {product.seller.ratingCount > 0 && (
                 <>
                   {' · '}
