@@ -238,6 +238,69 @@ export async function sendReviewPromptEmail(
 }
 
 /**
+ * Cart-abandonment recovery email. Marketing-class — only fired by the
+ * cart-recovery cron after gating on the buyer's emailMarketingOptIn flag.
+ */
+export async function sendCartRecoveryEmail(
+  to: string,
+  meta: {
+    items: Array<{ title: string; qty: number; lineTotalMinor: number; imageUrl?: string | null }>;
+    subtotalMinor: number;
+    currency: string;
+    cartUrl: string;
+  },
+): Promise<void> {
+  if (meta.items.length === 0) return;
+  const fmt = (minor: number) =>
+    new Intl.NumberFormat('en', { style: 'currency', currency: meta.currency })
+      .format(minor / 100);
+
+  const itemLines = meta.items
+    .map((it) => `· ${it.title} × ${it.qty} — ${fmt(it.lineTotalMinor)}`)
+    .join('\n');
+
+  const itemRows = meta.items
+    .map(
+      (it) => `<tr>
+        <td style="padding:6px 0;font-size:14px;color:#334155;">
+          ${escapeHtml(it.title)}
+          <span style="color:#94a3b8;"> × ${it.qty}</span>
+        </td>
+        <td style="padding:6px 0;font-size:14px;color:#334155;text-align:right;font-variant-numeric:tabular-nums;">
+          ${fmt(it.lineTotalMinor)}
+        </td>
+      </tr>`,
+    )
+    .join('');
+
+  await send({
+    to,
+    subject:
+      meta.items.length === 1
+        ? `You left ${meta.items[0]!.title} in your cart`
+        : `You left ${meta.items.length} items in your cart`,
+    text:
+      `You still have items in your cart at Onsective:\n\n` +
+      `${itemLines}\n\n` +
+      `Subtotal: ${fmt(meta.subtotalMinor)}\n\n` +
+      `Pick up where you left off: ${meta.cartUrl}`,
+    html: shell(
+      'Your cart is waiting',
+      `<p>Looks like you left a few things in your cart at Onsective. Stock changes fast — grab them before someone else does.</p>
+       <table cellpadding="0" cellspacing="0" style="width:100%;margin:16px 0;border-collapse:collapse;">
+         ${itemRows}
+         <tr>
+           <td style="padding:10px 0 0;border-top:1px solid #e2e8f0;font-size:14px;font-weight:600;color:#0f172a;">Subtotal</td>
+           <td style="padding:10px 0 0;border-top:1px solid #e2e8f0;font-size:14px;font-weight:600;color:#0f172a;text-align:right;font-variant-numeric:tabular-nums;">${fmt(meta.subtotalMinor)}</td>
+         </tr>
+       </table>
+       <p style="margin: 20px 0;"><a href="${meta.cartUrl}" style="display:inline-block;background:#0f172a;color:white;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:600;font-size:14px;">Resume checkout</a></p>
+       <p style="font-size: 12px; color: #94a3b8;">Don't want these reminders? <a href="${meta.cartUrl.split('/cart')[0]}/account/notifications" style="color:#94a3b8;text-decoration:underline;">Manage email preferences</a>.</p>`,
+    ),
+  });
+}
+
+/**
  * Notify a recipient that the other side posted a new message in their
  * thread. Subject + body are kept terse — this is a "you have a notification"
  * nudge, not a digest. Body preview is capped at 280 chars to keep the email
