@@ -11,6 +11,7 @@ import { ReviewsSection } from '@/components/product/reviews-section';
 import { QASection } from '@/components/product/qa-section';
 import { RecentlyViewedTracker } from '@/components/recently-viewed-tracker';
 import { RecentlyViewedRow } from '@/components/recently-viewed-row';
+import { MoreFromSeller } from '@/components/product/more-from-seller';
 import { RateLimited } from '@/components/rate-limited';
 import { pageReadLimit } from '@/server/page-rate-limit';
 
@@ -48,7 +49,7 @@ export default async function ProductPage({ params }: Props) {
           reservedQty: true,
         },
       },
-      seller: { select: { displayName: true, slug: true, ratingAvg: true, ratingCount: true } },
+      seller: { select: { id: true, displayName: true, slug: true, ratingAvg: true, ratingCount: true } },
       category: { select: { slug: true, name: true } },
     },
   });
@@ -145,6 +146,13 @@ export default async function ProductPage({ params }: Props) {
       </div>
 
       <RelatedAds locale={params.locale} productId={product.id} categoryId={product.categoryId} />
+      <MoreFromSeller
+        locale={params.locale}
+        sellerId={product.seller.id}
+        sellerSlug={product.seller.slug}
+        sellerName={product.seller.displayName}
+        excludeId={product.id}
+      />
       <RecentlyViewedTracker productId={product.id} />
       <RecentlyViewedRow locale={params.locale} excludeId={product.id} />
 
