@@ -1,6 +1,6 @@
 import type Stripe from 'stripe';
 import { prisma } from '../db';
-import { awardReferralOnFirstOrder, refundCredit } from '../auth';
+import { awardReferralOnFirstOrder, refundCredit, awardCredit } from '../auth';
 
 /**
  * Event handlers — one per Stripe event type we care about.
@@ -145,6 +145,34 @@ export async function handlePaymentIntentSucceeded(event: Stripe.Event) {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[referrals] award on first order failed:', err);
+  }
+
+  // Gift cards: every OrderItem whose Variant.Product.isGiftCard is true
+  // mints buyer credit equal to the line subtotal. Idempotent because
+  // awardCredit is keyed off (sourceType=gift_card, sourceId=orderItem.id,
+  // type=AWARD) — webhook replays no-op.
+  try {
+    const giftItems = await prisma.orderItem.findMany({
+      where: { orderId, variant: { product: { isGiftCard: true } } },
+      select: {
+        id: true,
+        lineSubtotal: true,
+        order: { select: { buyerId: true, currency: true } },
+      },
+    });
+    for (const item of giftItems) {
+      await awardCredit({
+        userId: item.order.buyerId,
+        amountMinor: item.lineSubtotal,
+        currency: item.order.currency,
+        sourceType: 'gift_card',
+        sourceId: item.id,
+        note: 'Gift card purchase',
+      });
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[gift-cards] credit mint on first order failed:', err);
   }
 }
 

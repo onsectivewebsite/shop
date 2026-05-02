@@ -618,6 +618,13 @@ model Product {
   // and customs requirement. Defaults to seller's country if unset.
   originCountryCode  String?
 
+  // Gift-card flag. When true, paying for an OrderItem of this product
+  // mints a UserCreditTransaction AWARD against the buyer for the line
+  // subtotal — see handlePaymentIntentSucceeded. Server-only flag; no UI
+  // exposes it. Sellers can't self-flag, since that would let anyone mint
+  // platform credit by listing a "gift card" SKU.
+  isGiftCard    Boolean       @default(false)
+
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   publishedAt   DateTime?
