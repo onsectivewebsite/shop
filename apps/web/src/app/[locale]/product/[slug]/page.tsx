@@ -9,6 +9,8 @@ import { RelatedAds } from '@/components/product/related-ads';
 import { WishlistHeart } from '@/components/wishlist-heart';
 import { ReviewsSection } from '@/components/product/reviews-section';
 import { QASection } from '@/components/product/qa-section';
+import { RecentlyViewedTracker } from '@/components/recently-viewed-tracker';
+import { RecentlyViewedRow } from '@/components/recently-viewed-row';
 import { RateLimited } from '@/components/rate-limited';
 import { pageReadLimit } from '@/server/page-rate-limit';
 
@@ -138,6 +140,8 @@ export default async function ProductPage({ params }: Props) {
       </div>
 
       <RelatedAds locale={params.locale} productId={product.id} categoryId={product.categoryId} />
+      <RecentlyViewedTracker productId={product.id} />
+      <RecentlyViewedRow locale={params.locale} excludeId={product.id} />
 
       <ReviewsSection productId={product.id} />
       <QASection productId={product.id} />

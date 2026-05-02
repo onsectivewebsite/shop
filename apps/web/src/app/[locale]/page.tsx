@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { prisma } from '@/server/db';
+import { RecentlyViewedRow } from '@/components/recently-viewed-row';
 
 async function getHomeData() {
   const [productCount] = await Promise.all([
@@ -71,12 +72,17 @@ function fmt(minor: number) {
   return `$${(minor / 100).toFixed(2)}`;
 }
 
-export default async function HomePage() {
+export default async function HomePage({
+  params,
+}: {
+  params: { locale: string };
+}) {
   const t = await getTranslations('home');
   const { productCount } = await getHomeData();
 
   return (
     <div className="bg-stone-50">
+      <RecentlyViewedRow locale={params.locale} />
       {/* HERO — asymmetric bento with featured banner + spotlight + sell CTA */}
       <section className="container-page pt-6 pb-8">
         <div className="grid grid-cols-12 gap-3 md:gap-4">

@@ -22,6 +22,41 @@ type SearchVariantRow = {
 };
 
 export const catalogRouter = router({
+  /**
+   * Resolve product ids → cards. Used by the Recently-viewed row, which
+   * keeps a cookie list and asks the server to inflate them. Capped at 12
+   * because that's the surface area of the row at desktop; anything longer
+   * loses signal anyway.
+   */
+  byIds: limitedRead
+    .input(z.object({ ids: z.array(z.string()).min(1).max(12) }))
+    .query(async ({ input }) => {
+      const products = await prisma.product.findMany({
+        where: { id: { in: input.ids }, status: 'ACTIVE' },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          brand: true,
+          images: true,
+          ratingAvg: true,
+          ratingCount: true,
+          variants: {
+            where: { isActive: true },
+            orderBy: { priceAmount: 'asc' },
+            take: 1,
+            select: { priceAmount: true, mrpAmount: true, currency: true },
+          },
+        },
+      });
+      // Preserve caller-supplied order — the cookie has them most-recent
+      // first and Prisma's `in` doesn't honour that.
+      const byId = new Map(products.map((p) => [p.id, p]));
+      return input.ids
+        .map((id) => byId.get(id))
+        .filter((p): p is NonNullable<typeof p> => Boolean(p));
+    }),
+
   categories: router({
     tree: limitedRead.query(async () => {
       // Top-level only for v0; expand to recursive in Phase 1.
