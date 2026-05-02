@@ -62,13 +62,21 @@ export default async function ProductsPage({
             </p>
           </div>
           {seller.status === 'APPROVED' ? (
-            <Link
-              href="/dashboard/products/new"
-              className="inline-flex h-11 items-center gap-2 rounded-full bg-stone-900 px-5 text-sm font-semibold text-white transition-colors hover:bg-stone-800"
-            >
-              <Plus size={16} strokeWidth={2} />
-              List a new product
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/dashboard/products/import"
+                className="inline-flex h-11 items-center rounded-full border border-stone-300 px-4 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
+              >
+                Bulk import (CSV)
+              </Link>
+              <Link
+                href="/dashboard/products/new"
+                className="inline-flex h-11 items-center gap-2 rounded-full bg-stone-900 px-5 text-sm font-semibold text-white transition-colors hover:bg-stone-800"
+              >
+                <Plus size={16} strokeWidth={2} />
+                List a new product
+              </Link>
+            </div>
           ) : (
             <p className="rounded-full bg-amber-100 px-4 py-2 text-xs font-semibold text-amber-900">
               Listing unlocks after KYC approval
