@@ -3,6 +3,7 @@ import { Prisma } from '@onsective/db';
 import { router, publicProcedure, publicReadRateLimit } from '../trpc';
 import { prisma } from '../db';
 import { isOpenSearchEnabled, searchProducts } from '../search/opensearch';
+import { expandQuerySynonyms } from '../search/synonyms';
 
 const limitedRead = publicProcedure.use(publicReadRateLimit);
 
@@ -165,6 +166,11 @@ export const catalogRouter = router({
 
       const offset = (input.page - 1) * input.perPage;
 
+      const synExpr = expandQuerySynonyms(input.q);
+      const synClause = synExpr
+        ? Prisma.sql`OR p."searchVector" @@ to_tsquery('english', ${synExpr})`
+        : Prisma.empty;
+
       const rows = await prisma.$queryRaw<Array<SearchRow & { rank: number; total: bigint }>>(
         Prisma.sql`
           SELECT
@@ -177,7 +183,7 @@ export const catalogRouter = router({
             COUNT(*) OVER() AS total
           FROM "Product" p
           WHERE p."status" = 'ACTIVE'
-            AND p."searchVector" @@ websearch_to_tsquery('english', ${input.q})
+            AND (p."searchVector" @@ websearch_to_tsquery('english', ${input.q}) ${synClause})
           ORDER BY rank DESC, p."createdAt" DESC
           LIMIT ${input.perPage} OFFSET ${offset}
         `,

@@ -6,6 +6,7 @@ import { prisma } from '@/server/db';
 import { Prisma } from '@onsective/db';
 import { pageReadLimit } from '@/server/page-rate-limit';
 import { isOpenSearchEnabled, searchProducts } from '@/server/search/opensearch';
+import { expandQuerySynonyms } from '@/server/search/synonyms';
 
 const PER_PAGE = 24;
 const SPONSORED_SLOTS = 2;
@@ -109,6 +110,15 @@ async function runSearch(
       ? Prisma.sql`JOIN "Seller" s ON s."id" = p."sellerId"`
       : Prisma.empty;
 
+  // Synonym expansion: broadens the WHERE without changing the ORDER BY
+  // rank (which still uses the original query). Synonym matches naturally
+  // sort below exact matches because their ts_rank against the original
+  // query is 0 — exactly the behaviour we want for "did you mean…".
+  const synExpr = expandQuerySynonyms(q);
+  const synClause = synExpr
+    ? Prisma.sql`OR p."searchVector" @@ to_tsquery('english', ${synExpr})`
+    : Prisma.empty;
+
   const rows = await prisma.$queryRaw<
     Array<{
       id: string;
@@ -127,7 +137,7 @@ async function runSearch(
     FROM "Product" p
     ${sellerJoin}
     WHERE p."status" = 'ACTIVE'
-      AND p."searchVector" @@ websearch_to_tsquery('english', ${q})
+      AND (p."searchVector" @@ websearch_to_tsquery('english', ${q}) ${synClause})
       ${brandClause}
       ${ratingClause}
       ${priceClause}
