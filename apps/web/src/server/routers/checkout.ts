@@ -83,6 +83,10 @@ export const checkoutRouter = router({
       z.object({
         shippingAddressId: z.string(),
         billingAddressId: z.string().optional(),
+        // Optional gift message / delivery instructions. Capped at 1000
+        // chars at the boundary so a malicious payload can't blow up
+        // seller email rendering.
+        buyerNote: z.string().trim().max(1000).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -141,6 +145,7 @@ export const checkoutRouter = router({
             totalAmount: total,
             shippingAddressId: input.shippingAddressId,
             billingAddressId: input.billingAddressId ?? input.shippingAddressId,
+            buyerNote: input.buyerNote && input.buyerNote.length > 0 ? input.buyerNote : null,
             status: 'PAYMENT_PENDING',
           },
         });

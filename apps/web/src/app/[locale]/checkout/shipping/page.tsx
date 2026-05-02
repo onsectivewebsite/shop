@@ -1,13 +1,17 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Card, CardContent } from '@onsective/ui';
 import { trpc } from '@/lib/trpc';
 import { formatMoney } from '@/lib/utils';
 
+const NOTE_MAX = 500;
+
 export default function CheckoutShippingPage() {
   const router = useRouter();
   const { data, isLoading } = trpc.checkout.summary.useQuery();
+  const [note, setNote] = useState<string>('');
 
   if (isLoading || !data) {
     return <p className="text-slate-500">Loading…</p>;
@@ -35,8 +39,43 @@ export default function CheckoutShippingPage() {
         </CardContent>
       </Card>
 
+      <Card className="mt-4">
+        <CardContent className="space-y-2 p-4">
+          <label htmlFor="buyer-note" className="text-sm font-medium text-slate-900">
+            Note for the seller{' '}
+            <span className="font-normal text-slate-500">(optional)</span>
+          </label>
+          <textarea
+            id="buyer-note"
+            value={note}
+            onChange={(e) => setNote(e.target.value.slice(0, NOTE_MAX))}
+            rows={3}
+            placeholder="Gift message, delivery instructions, accessibility notes…"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+          />
+          <p className="text-right text-xs text-slate-400 tabular-nums">
+            {note.length}/{NOTE_MAX}
+          </p>
+        </CardContent>
+      </Card>
+
       <div className="mt-6 flex justify-end">
-        <Button variant="cta" size="lg" onClick={() => router.push('/checkout/pay')}>
+        <Button
+          variant="cta"
+          size="lg"
+          onClick={() => {
+            // Stash the note in sessionStorage so the pay-form picks it up
+            // when it calls placeOrder. Cleared on submit so navigating
+            // back here later doesn't reuse a stale message.
+            const trimmed = note.trim();
+            if (trimmed.length > 0) {
+              sessionStorage.setItem('checkout.buyerNote', trimmed);
+            } else {
+              sessionStorage.removeItem('checkout.buyerNote');
+            }
+            router.push('/checkout/pay');
+          }}
+        >
           Continue to payment →
         </Button>
       </div>

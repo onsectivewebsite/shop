@@ -817,6 +817,12 @@ model Order {
   cancelledAt         DateTime?
   cancelledReason     String?
 
+  // Optional message from the buyer at checkout — gift note, delivery
+  // instructions, anything the seller might find useful when picking and
+  // packing. Buyer-visible on /account/orders, seller-visible on the
+  // dashboard. Plain text, length-capped at the tRPC boundary.
+  buyerNote           String?     @db.Text
+
   // B2B linkage. Set when the order was placed by a member of an Organization.
   // taxExempt = true when an active TaxExemption covered the destination at order time.
   organizationId      String?

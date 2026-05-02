@@ -40,7 +40,17 @@ export function PayForm() {
       return;
     }
     if (!clientSecret && !place.isLoading && summary) {
-      place.mutate({ shippingAddressId: id });
+      // The note is captured on the shipping page and stashed in
+      // sessionStorage so it survives the navigation to /checkout/pay
+      // without needing a server round-trip just to hold it.
+      const note = sessionStorage.getItem('checkout.buyerNote') ?? '';
+      place.mutate({
+        shippingAddressId: id,
+        buyerNote: note.trim().length > 0 ? note : undefined,
+      });
+      // Clear it so a subsequent navigation back to checkout doesn't
+      // accidentally reuse a stale note.
+      sessionStorage.removeItem('checkout.buyerNote');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summary, clientSecret]);

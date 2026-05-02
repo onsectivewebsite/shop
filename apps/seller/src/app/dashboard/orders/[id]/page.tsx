@@ -23,6 +23,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
           orderNumber: true,
           currency: true,
           placedAt: true,
+          buyerNote: true,
           buyer: { select: { fullName: true, email: true } },
           shippingAddress: true,
         },
@@ -109,6 +110,18 @@ export default async function OrderDetailPage({ params }: { params: { id: string
               <MapPin size={11} /> Snapshot at order time
             </p>
           </div>
+
+          {/* Buyer note (gift message / delivery instructions) */}
+          {item.order.buyerNote && (
+            <div className="rounded-3xl border border-amber-200 bg-amber-50 p-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-900">
+                Note from buyer
+              </p>
+              <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-stone-800">
+                {item.order.buyerNote}
+              </p>
+            </div>
+          )}
 
           {/* Pack details */}
           <div className="rounded-3xl border border-stone-200 bg-white p-6">

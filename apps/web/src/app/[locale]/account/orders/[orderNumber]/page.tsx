@@ -47,6 +47,19 @@ export default async function BuyerOrderDetailPage({
           </div>
         </header>
 
+        {order.buyerNote && (
+          <Card>
+            <CardContent className="space-y-2 p-6">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+                Your note for the seller
+              </h2>
+              <p className="whitespace-pre-line text-sm text-slate-700">
+                {order.buyerNote}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardContent className="space-y-4 p-6">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
