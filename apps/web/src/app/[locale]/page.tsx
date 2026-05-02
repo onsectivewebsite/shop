@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { prisma } from '@/server/db';
 import { RecentlyViewedRow } from '@/components/recently-viewed-row';
+import { organizationJsonLd, websiteJsonLd, jsonLdScriptContent } from '@/lib/json-ld';
 
 async function getHomeData() {
   const [productCount] = await Promise.all([
@@ -82,6 +83,16 @@ export default async function HomePage({
 
   return (
     <div className="bg-stone-50">
+      {/* eslint-disable-next-line react/no-danger */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScriptContent(organizationJsonLd()) }}
+      />
+      {/* eslint-disable-next-line react/no-danger */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScriptContent(websiteJsonLd()) }}
+      />
       <RecentlyViewedRow locale={params.locale} />
       {/* HERO — asymmetric bento with featured banner + spotlight + sell CTA */}
       <section className="container-page pt-6 pb-8">

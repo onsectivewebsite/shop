@@ -13,6 +13,7 @@ import { RecentlyViewedTracker } from '@/components/recently-viewed-tracker';
 import { RecentlyViewedRow } from '@/components/recently-viewed-row';
 import { MoreFromSeller } from '@/components/product/more-from-seller';
 import { isOnVacation } from '@/server/vacation';
+import { productJsonLd, jsonLdScriptContent } from '@/lib/json-ld';
 import { RateLimited } from '@/components/rate-limited';
 import { pageReadLimit } from '@/server/page-rate-limit';
 
@@ -82,8 +83,30 @@ export default async function ProductPage({ params }: Props) {
       )
     : false;
 
+  const ldNode = productJsonLd({
+    title: product.title,
+    slug: product.slug,
+    description: product.description,
+    brand: product.brand,
+    imageUrls: product.images,
+    ratingAvg: product.ratingAvg,
+    ratingCount: product.ratingCount,
+    sellerName: product.seller.displayName,
+    variants: product.variants.map((v) => ({
+      sku: v.sku,
+      priceAmount: v.priceAmount,
+      currency: v.currency,
+      available: v.stockQty - v.reservedQty > 0,
+    })),
+  });
+
   return (
     <div className="container-page py-8">
+      {/* eslint-disable-next-line react/no-danger */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScriptContent(ldNode) }}
+      />
       <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
         <ol className="flex flex-wrap items-center gap-1.5">
           <li>
