@@ -1573,6 +1573,11 @@ model Conversation {
   // read-receipt table.
   buyerLastReadAt  DateTime?
   sellerLastReadAt DateTime?
+  // Per-side notification throttle stamps. The send path stamps the
+  // recipient's column atomically before the SMTP call, so a chatty back-
+  // and-forth collapses to one email per 30-min window per side.
+  buyerLastNotifiedAt  DateTime?
+  sellerLastNotifiedAt DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

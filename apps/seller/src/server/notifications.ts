@@ -45,6 +45,53 @@ async function send(opts: { to: string; subject: string; text: string; html: str
   });
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Notify the buyer that the seller sent a new message. Mirrors the buyer-app
+ * helper of the same name; lives here so the seller-side send path doesn't
+ * need to cross app boundaries to dispatch mail.
+ */
+export async function sendNewMessageEmail(
+  to: string,
+  meta: {
+    senderName: string;
+    productTitle: string;
+    orderNumber: string;
+    bodyPreview: string;
+    threadUrl: string;
+  },
+): Promise<void> {
+  const preview =
+    meta.bodyPreview.length > 280
+      ? `${meta.bodyPreview.slice(0, 280).trim()}…`
+      : meta.bodyPreview;
+
+  await send({
+    to,
+    subject: `${meta.senderName} sent you a message about ${meta.productTitle}`,
+    text:
+      `${meta.senderName} sent you a new message about ${meta.productTitle} ` +
+      `(order ${meta.orderNumber}):\n\n` +
+      `${preview}\n\n` +
+      `Open the conversation: ${meta.threadUrl}`,
+    html: shell(
+      `New message from ${escapeHtml(meta.senderName)}`,
+      `<p style="font-size: 13px; color: #64748b;">About ${escapeHtml(meta.productTitle)} · order ${escapeHtml(meta.orderNumber)}</p>
+       <blockquote style="margin: 16px 0; padding: 12px 16px; background: #f1f5f9; border-left: 3px solid #cbd5e1; font-size: 14px; color: #334155; white-space: pre-line;">${escapeHtml(preview)}</blockquote>
+       <p style="margin: 20px 0;"><a href="${meta.threadUrl}" style="display:inline-block;background:#0f172a;color:white;padding:12px 20px;border-radius:9999px;text-decoration:none;font-weight:600;font-size:14px;">Open conversation</a></p>
+       <p style="font-size: 12px; color: #94a3b8;">Reply directly in the conversation — replies to this email aren't read.</p>`,
+    ),
+  });
+}
+
 export async function sendOtpEmail(to: string, code: string): Promise<void> {
   await send({
     to,

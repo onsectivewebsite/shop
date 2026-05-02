@@ -2,6 +2,7 @@ import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { router, protectedProcedure, userMutationRateLimit } from '../trpc';
 import { prisma } from '../db';
+import { notifyNewMessage } from '../messaging';
 
 /**
  * Buyer-side messaging. A Conversation is anchored 1:1 to an OrderItem so
@@ -194,6 +195,14 @@ export const messagesRouter = router({
           data: { lastMessageAt: now, buyerLastReadAt: now },
         }),
       ]);
+      // Fire-and-forget — never block the buyer's response on SMTP. The
+      // notify helper has its own error swallow so the unhandled rejection
+      // here is the rare "even logging failed" case.
+      void notifyNewMessage({
+        conversationId: conv.id,
+        fromRole: 'BUYER',
+        bodyPreview: input.body,
+      });
       return { id: message.id, createdAt: message.createdAt };
     }),
 });

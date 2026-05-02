@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/server/db';
 import { getSellerSession } from '@/server/auth';
+import { notifyNewMessage } from '@/server/messaging';
 
 const BODY_MAX = 2000;
 
@@ -52,6 +53,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       data: { lastMessageAt: now, sellerLastReadAt: now },
     }),
   ]);
+
+  // Fire-and-forget — never block the seller's response on SMTP. The
+  // notify helper handles its own throttle + error swallow.
+  void notifyNewMessage({
+    conversationId: ctx.conversationId,
+    fromRole: 'SELLER',
+    bodyPreview: payload.body,
+  });
 
   return NextResponse.json({ ok: true });
 }
