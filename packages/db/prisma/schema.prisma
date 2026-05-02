@@ -527,6 +527,16 @@ model Seller {
   // and wipeable via `pnpm db:seed:demo --reset` before launch.
   isDemo              Boolean      @default(false)
 
+  // Vacation mode — seller-controlled flag that pauses fulfillment without
+  // touching Product.status. Effects: PDP banner + disabled Buy button +
+  // server-side cart/placeOrder block + storefront banner. Listings stay
+  // visible to buyers (they can wishlist but not buy). Auto-clears at
+  // vacationUntil if set; nothing enforces this server-side yet, so the
+  // UI just compares against now() at render time.
+  vacationMode        Boolean      @default(false)
+  vacationMessage     String?      @db.Text
+  vacationUntil       DateTime?
+
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 

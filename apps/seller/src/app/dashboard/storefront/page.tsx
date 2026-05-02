@@ -5,6 +5,7 @@ import { getSellerSession } from '@/server/auth';
 import { prisma } from '@/server/db';
 import { SellerShell } from '@/components/seller-shell';
 import { StorefrontForm } from './storefront-form';
+import { VacationCard } from './vacation-card';
 
 export const metadata = { title: 'Storefront' };
 
@@ -42,6 +43,19 @@ export default async function StorefrontPage() {
               taxId: seller.taxId ?? '',
             }}
             approved={seller.status === 'APPROVED'}
+          />
+        </div>
+
+        <div className="mt-6 max-w-3xl rounded-3xl border border-stone-200 bg-white p-8 sm:p-10">
+          <VacationCard
+            initial={{
+              vacationMode: seller.vacationMode,
+              vacationMessage: seller.vacationMessage ?? '',
+              // <input type="datetime-local"> wants YYYY-MM-DDTHH:MM
+              vacationUntil: seller.vacationUntil
+                ? seller.vacationUntil.toISOString().slice(0, 16)
+                : '',
+            }}
           />
         </div>
       </div>

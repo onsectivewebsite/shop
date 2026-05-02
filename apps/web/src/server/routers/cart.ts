@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { randomBytes } from 'node:crypto';
 import { router, publicProcedure, userMutationRateLimit } from '../trpc';
 import { prisma } from '../db';
+import { isOnVacation } from '../vacation';
 
 const CART_COOKIE = 'ons_cart';
 
@@ -57,13 +58,25 @@ export const cartRouter = router({
     .mutation(async ({ ctx, input }) => {
       const variant = await prisma.variant.findUnique({
         where: { id: input.variantId },
-        include: { product: true },
+        include: {
+          product: {
+            include: {
+              seller: { select: { displayName: true, vacationMode: true, vacationUntil: true } },
+            },
+          },
+        },
       });
       if (!variant || !variant.isActive) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Variant unavailable.' });
       }
       if (variant.stockQty < input.qty) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Insufficient stock.' });
+      }
+      if (isOnVacation(variant.product.seller)) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: `${variant.product.seller.displayName} is on vacation. Save to your wishlist to buy when they're back.`,
+        });
       }
 
       const cart = await getOrCreateCart(ctx.user?.id ?? null);

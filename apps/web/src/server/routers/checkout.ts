@@ -11,6 +11,7 @@ import {
   quoteCrossCurrency,
 } from '../auth';
 import { evaluateCoupon } from '../coupons';
+import { isOnVacation } from '../vacation';
 
 /**
  * Checkout router — Phase 1.
@@ -193,12 +194,19 @@ export const checkoutRouter = router({
       });
       if (!shipAddr) throw new TRPCError({ code: 'NOT_FOUND', message: 'Address not found.' });
 
-      // Stock check
+      // Stock check + vacation guard. The cart could contain items from a
+      // seller who flipped on vacation mode after the buyer added them.
       for (const item of cart.items) {
         if (item.variant.stockQty < item.qty) {
           throw new TRPCError({
             code: 'BAD_REQUEST',
             message: `${item.variant.product.title} is out of stock.`,
+          });
+        }
+        if (isOnVacation(item.variant.product.seller)) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `${item.variant.product.seller.displayName} is on vacation. Remove items from this seller and try again.`,
           });
         }
       }

@@ -6,6 +6,7 @@ import { prisma } from '@/server/db';
 import { ProductCard } from '@/components/product-card';
 import { RateLimited } from '@/components/rate-limited';
 import { pageReadLimit } from '@/server/page-rate-limit';
+import { isOnVacation } from '@/server/vacation';
 
 const PER_PAGE = 24;
 // Price-based sort omitted on purpose — needs a raw-SQL JOIN on min variant
@@ -50,6 +51,9 @@ export default async function SellerStorefrontPage({ params, searchParams }: Pro
       ratingCount: true,
       status: true,
       createdAt: true,
+      vacationMode: true,
+      vacationMessage: true,
+      vacationUntil: true,
     },
   });
   // SUSPENDED + REJECTED storefronts 404 — listings get hidden too via the
@@ -151,6 +155,25 @@ export default async function SellerStorefrontPage({ params, searchParams }: Pro
           </div>
         </div>
       </header>
+
+      {isOnVacation(seller) && (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-900">
+            On vacation
+            {seller.vacationUntil &&
+              ` until ${seller.vacationUntil.toLocaleDateString()}`}
+          </p>
+          {seller.vacationMessage && (
+            <p className="mt-1 whitespace-pre-line text-sm text-amber-800">
+              {seller.vacationMessage}
+            </p>
+          )}
+          <p className="mt-2 text-xs text-amber-700">
+            New orders are paused. Save items to your wishlist for a price-drop
+            ping when {seller.displayName} is back.
+          </p>
+        </div>
+      )}
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
         <SortPill href={buildHref(1, 'newest')} label="Newest" active={sort === 'newest'} />

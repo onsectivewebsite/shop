@@ -12,6 +12,7 @@ import { QASection } from '@/components/product/qa-section';
 import { RecentlyViewedTracker } from '@/components/recently-viewed-tracker';
 import { RecentlyViewedRow } from '@/components/recently-viewed-row';
 import { MoreFromSeller } from '@/components/product/more-from-seller';
+import { isOnVacation } from '@/server/vacation';
 import { RateLimited } from '@/components/rate-limited';
 import { pageReadLimit } from '@/server/page-rate-limit';
 
@@ -49,7 +50,18 @@ export default async function ProductPage({ params }: Props) {
           reservedQty: true,
         },
       },
-      seller: { select: { id: true, displayName: true, slug: true, ratingAvg: true, ratingCount: true } },
+      seller: {
+        select: {
+          id: true,
+          displayName: true,
+          slug: true,
+          ratingAvg: true,
+          ratingCount: true,
+          vacationMode: true,
+          vacationMessage: true,
+          vacationUntil: true,
+        },
+      },
       category: { select: { slug: true, name: true } },
     },
   });
@@ -128,7 +140,25 @@ export default async function ProductPage({ params }: Props) {
             </p>
           </div>
 
-          <Buybox locale={params.locale} variants={variants} />
+          {isOnVacation(product.seller) ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-semibold text-amber-900">
+                {product.seller.displayName} is on vacation
+                {product.seller.vacationUntil &&
+                  ` until ${product.seller.vacationUntil.toLocaleDateString()}`}
+              </p>
+              {product.seller.vacationMessage && (
+                <p className="mt-1 whitespace-pre-line text-sm text-amber-800">
+                  {product.seller.vacationMessage}
+                </p>
+              )}
+              <p className="mt-2 text-xs text-amber-700">
+                Save it to your wishlist and we&apos;ll remind you when they&apos;re back.
+              </p>
+            </div>
+          ) : (
+            <Buybox locale={params.locale} variants={variants} />
+          )}
 
           {product.bullets.length > 0 && (
             <ul className="space-y-2 border-t border-slate-200 pt-5 text-sm text-slate-700">
