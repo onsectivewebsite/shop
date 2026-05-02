@@ -13,6 +13,7 @@ import {
   Wrench,
   ShieldCheck,
   Flag,
+  Tag,
 } from 'lucide-react';
 import { cn } from '@onsective/ui';
 
@@ -25,6 +26,7 @@ const SECTIONS = [
       { href: '/dashboard/sellers', label: 'Sellers', icon: Store },
       { href: '/dashboard/products', label: 'Catalog', icon: Package },
       { href: '/dashboard/orders', label: 'Orders', icon: ShoppingBag },
+      { href: '/dashboard/coupons', label: 'Coupons', icon: Tag },
     ],
   },
   {

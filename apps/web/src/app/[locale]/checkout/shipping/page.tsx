@@ -13,6 +13,14 @@ export default function CheckoutShippingPage() {
   const { data, isLoading } = trpc.checkout.summary.useQuery();
   const [note, setNote] = useState<string>('');
   const [useFx, setUseFx] = useState<boolean>(false);
+  const [couponCode, setCouponCode] = useState<string>('');
+  // Only fetch the preview after the user has typed at least 3 chars to
+  // avoid hammering the server on each keystroke. Re-runs when the input
+  // changes — a stale value briefly shows for one render before invalidation.
+  const couponQuery = trpc.checkout.previewCoupon.useQuery(
+    { code: couponCode.trim().toUpperCase() },
+    { enabled: couponCode.trim().length >= 3 },
+  );
 
   if (isLoading || !data) {
     return <p className="text-slate-500">Loading…</p>;
@@ -57,6 +65,40 @@ export default function CheckoutShippingPage() {
           <p className="text-right text-xs text-slate-400 tabular-nums">
             {note.length}/{NOTE_MAX}
           </p>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="space-y-2 p-4">
+          <label htmlFor="coupon" className="text-sm font-medium text-slate-900">
+            Promo code <span className="font-normal text-slate-500">(optional)</span>
+          </label>
+          <input
+            id="coupon"
+            type="text"
+            value={couponCode}
+            onChange={(e) => setCouponCode(e.target.value.slice(0, 64))}
+            placeholder="Enter code"
+            autoComplete="off"
+            spellCheck={false}
+            className="w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-sm uppercase tracking-wider focus:border-slate-900 focus:outline-none"
+          />
+          {couponCode.trim().length >= 3 && (
+            <>
+              {couponQuery.isLoading && (
+                <p className="text-xs text-slate-400">Checking…</p>
+              )}
+              {!couponQuery.isLoading && couponQuery.data && (
+                <p className="text-xs font-medium text-emerald-700">
+                  ✓ Saves {formatMoney(couponQuery.data.discountMinor, couponQuery.data.currency)}{' '}
+                  off this order.
+                </p>
+              )}
+              {!couponQuery.isLoading && couponQuery.data === null && (
+                <p className="text-xs text-slate-500">Coupon not applicable.</p>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -110,6 +152,14 @@ export default function CheckoutShippingPage() {
               sessionStorage.removeItem('checkout.buyerNote');
             }
             sessionStorage.setItem('checkout.useFx', useFx ? '1' : '0');
+            // Stash a valid coupon — we only forward it if the preview
+            // came back successful. A bogus code stays out of placeOrder.
+            const cleanCoupon = couponCode.trim().toUpperCase();
+            if (cleanCoupon.length >= 3 && couponQuery.data) {
+              sessionStorage.setItem('checkout.coupon', cleanCoupon);
+            } else {
+              sessionStorage.removeItem('checkout.coupon');
+            }
             router.push('/checkout/pay');
           }}
         >

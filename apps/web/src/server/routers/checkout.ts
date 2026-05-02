@@ -10,6 +10,7 @@ import {
   getLatestRate,
   quoteCrossCurrency,
 } from '../auth';
+import { evaluateCoupon } from '../coupons';
 
 /**
  * Checkout router — Phase 1.
@@ -134,6 +135,34 @@ export const checkoutRouter = router({
     };
   }),
 
+  /**
+   * Preview a coupon against the current cart. Cheap to call on each
+   * keystroke since it just reads one Coupon row and does arithmetic.
+   * Returns null when the coupon doesn't apply for any reason — UI just
+   * shows "Coupon not applicable" without disclosing why.
+   */
+  previewCoupon: protectedProcedure
+    .input(z.object({ code: z.string().trim().max(64) }))
+    .query(async ({ ctx, input }) => {
+      const cart = await loadCart(ctx.user.id);
+      if (!cart || cart.items.length === 0) return null;
+      const subtotal = cart.items.reduce(
+        (acc, i) => acc + i.priceSnapshot * i.qty,
+        0,
+      );
+      const evaluation = await evaluateCoupon({
+        code: input.code,
+        cartCurrency: cart.currency,
+        cartSubtotalMinor: subtotal,
+      });
+      if (!evaluation) return null;
+      return {
+        code: evaluation.code,
+        discountMinor: evaluation.discountMinor,
+        currency: cart.currency,
+      };
+    }),
+
   placeOrder: protectedProcedure
     .use(userMutationRateLimit)
     .input(
@@ -148,6 +177,9 @@ export const checkoutRouter = router({
         // auto-apply because the user is choosing to lock in today's FX
         // rate — that's their call.
         useCrossCurrencyCredit: z.boolean().default(false),
+        // Optional promo code. Re-validated server-side at order time;
+        // we never trust the discount preview from the summary call.
+        couponCode: z.string().trim().max(64).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -178,7 +210,27 @@ export const checkoutRouter = router({
       const primeActive = await userHasActivePrime(ctx.user.id);
       const shipping = primeActive ? 0 : 500 * sellerCount;
       const tax = 0;
-      const preCreditTotal = subtotal + shipping + tax;
+
+      // Re-evaluate the coupon server-side at order time. Never trust the
+      // discount preview that came back from previewCoupon — the coupon
+      // could have expired, been disabled, or hit maxUses since the
+      // checkout page rendered.
+      let couponEval: Awaited<ReturnType<typeof evaluateCoupon>> = null;
+      if (input.couponCode && input.couponCode.length > 0) {
+        couponEval = await evaluateCoupon({
+          code: input.couponCode,
+          cartCurrency: cart.currency,
+          cartSubtotalMinor: subtotal,
+        });
+        if (!couponEval) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Coupon is no longer valid.',
+          });
+        }
+      }
+      const couponDiscount = couponEval?.discountMinor ?? 0;
+      const preCreditTotal = subtotal + shipping + tax - couponDiscount;
 
       // Re-read the credit balance at order time so two parallel checkouts
       // can't apply the same credit to two carts. The transaction below
@@ -219,8 +271,8 @@ export const checkoutRouter = router({
         }
       }
       const fxApplied = fxRedemption?.toAmountMinor ?? 0;
-      const totalDiscount = creditApplied + fxApplied;
-      const total = preCreditTotal - totalDiscount;
+      const totalDiscount = creditApplied + fxApplied + couponDiscount;
+      const total = subtotal + shipping + tax - totalDiscount;
 
       // Order number — production should use a sequence-backed generator
       const year = new Date().getFullYear();
@@ -238,6 +290,8 @@ export const checkoutRouter = router({
             shippingAmount: shipping,
             taxAmount: tax,
             discountAmount: totalDiscount,
+            couponCode: couponEval?.code ?? null,
+            couponDiscountAmount: couponDiscount,
             totalAmount: total,
             shippingAddressId: input.shippingAddressId,
             billingAddressId: input.billingAddressId ?? input.shippingAddressId,
@@ -245,6 +299,30 @@ export const checkoutRouter = router({
             status: 'PAYMENT_PENDING',
           },
         });
+
+        // Increment Coupon.usedCount with a guarded updateMany — if maxUses
+        // is set and we'd blow past it, the where-clause misses and the
+        // transaction rolls back the order. Two parallel last-redemption
+        // races can't both win.
+        if (couponEval) {
+          const claimed = await tx.coupon.updateMany({
+            where: {
+              id: couponEval.couponId,
+              isActive: true,
+              OR: [
+                { maxUses: null },
+                { usedCount: { lt: prisma.coupon.fields.maxUses } },
+              ],
+            },
+            data: { usedCount: { increment: 1 } },
+          });
+          if (claimed.count === 0) {
+            throw new TRPCError({
+              code: 'CONFLICT',
+              message: 'Coupon was just exhausted. Please retry without it.',
+            });
+          }
+        }
 
         // Redeem credit inside the order-create transaction so we either
         // get the order + ledger entry + balance decrement together, or

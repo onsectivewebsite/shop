@@ -857,6 +857,13 @@ model Order {
   // dashboard. Plain text, length-capped at the tRPC boundary.
   buyerNote           String?     @db.Text
 
+  // Snapshot of the coupon code applied at checkout (uppercased). Kept as
+  // a string rather than a Coupon FK so a deleted/renamed coupon row
+  // doesn't orphan order history. The discount amount is the slice of
+  // discountAmount that came from the coupon (not from credit redemption).
+  couponCode          String?
+  couponDiscountAmount Int        @default(0)
+
   // B2B linkage. Set when the order was placed by a member of an Organization.
   // taxExempt = true when an active TaxExemption covered the destination at order time.
   organizationId      String?
@@ -1655,6 +1662,43 @@ model MessageReport {
 // ============================================================================
 // COMMISSION RULES, COUPONS — Phase 2
 // ============================================================================
+
+enum CouponType {
+  PERCENT       // value is basis points (10% = 1000)
+  FIXED_AMOUNT  // value is minor units in `currency`
+}
+
+// Promotional discount codes. Platform-wide in v1 — no per-seller scoping
+// or category targeting yet (CommissionRule has the matching machinery if
+// we ever want it). Each redemption increments usedCount inside the order
+// transaction with a guarded updateMany so two parallel checkouts can't
+// blow past maxUses.
+model Coupon {
+  id             String     @id @default(cuid())
+  code           String     @unique  // user-facing, case-insensitive — store uppercased
+  type           CouponType
+  // PERCENT: basis points (1000 = 10%). FIXED_AMOUNT: minor units in `currency`.
+  value          Int
+  currency       String?    // required for FIXED_AMOUNT, ignored for PERCENT
+  // Cap on the discount when type=PERCENT — prevents 50%-off-on-a-$5000-order
+  // from blowing the budget. Null = no cap.
+  maxDiscountMinor Int?
+  // Minimum order subtotal to apply. Null = no minimum.
+  minOrderMinor    Int?
+  // Total redemptions allowed across all users. Null = unlimited.
+  maxUses        Int?
+  usedCount      Int        @default(0)
+  validFrom      DateTime   @default(now())
+  validUntil     DateTime?
+  isActive       Boolean    @default(true)
+  description    String?    // internal note for the console
+  createdById    String     // admin user id
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([code])
+  @@index([isActive, validFrom, validUntil])
+}
 
 model CommissionRule {
   id            String   @id @default(cuid())

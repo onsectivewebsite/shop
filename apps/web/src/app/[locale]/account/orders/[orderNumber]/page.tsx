@@ -154,6 +154,14 @@ export default async function BuyerOrderDetailPage({
                 {formatMoney(order.taxAmount, order.currency)}
               </span>
             </div>
+            {order.couponDiscountAmount > 0 && order.couponCode && (
+              <div className="flex justify-between text-emerald-700">
+                <span>Promo {order.couponCode}</span>
+                <span className="tabular-nums">
+                  −{formatMoney(order.couponDiscountAmount, order.currency)}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between border-t border-slate-200 pt-2 font-semibold">
               <span>Total</span>
               <span className="tabular-nums">

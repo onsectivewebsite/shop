@@ -22,6 +22,14 @@ export function PayForm() {
   // Captured once before placeOrder fires so the sidebar can show the FX
   // deduction line even though sessionStorage gets cleared right after.
   const [appliedFx, setAppliedFx] = useState<boolean>(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  // Preview the coupon's discount amount for the sidebar; mirrors the
+  // shipping page's previewCoupon call. The placeOrder mutation is the
+  // source of truth — this is just for the visual.
+  const couponPreview = trpc.checkout.previewCoupon.useQuery(
+    { code: appliedCoupon ?? '' },
+    { enabled: !!appliedCoupon },
+  );
 
   const place = trpc.checkout.placeOrder.useMutation({
     onSuccess: (data) => {
@@ -48,16 +56,20 @@ export function PayForm() {
       // /checkout/pay without a server round-trip just to hold them.
       const note = sessionStorage.getItem('checkout.buyerNote') ?? '';
       const useFx = sessionStorage.getItem('checkout.useFx') === '1';
+      const coupon = sessionStorage.getItem('checkout.coupon') ?? '';
       setAppliedFx(useFx && !!summary.crossCurrencyOption);
+      setAppliedCoupon(coupon.length > 0 ? coupon : null);
       place.mutate({
         shippingAddressId: id,
         buyerNote: note.trim().length > 0 ? note : undefined,
         useCrossCurrencyCredit: useFx,
+        couponCode: coupon.length > 0 ? coupon : undefined,
       });
       // Clear so a subsequent back-navigation doesn't accidentally reuse
       // stale state on the next placeOrder.
       sessionStorage.removeItem('checkout.buyerNote');
       sessionStorage.removeItem('checkout.useFx');
+      sessionStorage.removeItem('checkout.coupon');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summary, clientSecret]);
@@ -132,12 +144,23 @@ export function PayForm() {
               tone="credit"
             />
           )}
+          {appliedCoupon && couponPreview.data && (
+            <Row
+              label={`Promo ${appliedCoupon}`}
+              value={`−${formatMoney(
+                couponPreview.data.discountMinor,
+                summary.currency,
+              )}`}
+              tone="credit"
+            />
+          )}
           <hr className="border-slate-200" />
           <Row
             label="Total"
             value={formatMoney(
               summary.total -
-                (appliedFx ? summary.crossCurrencyOption?.toAmountMinor ?? 0 : 0),
+                (appliedFx ? summary.crossCurrencyOption?.toAmountMinor ?? 0 : 0) -
+                (couponPreview.data?.discountMinor ?? 0),
               summary.currency,
             )}
             bold
