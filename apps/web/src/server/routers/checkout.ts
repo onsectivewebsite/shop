@@ -2,7 +2,7 @@ import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { router, protectedProcedure, userMutationRateLimit } from '../trpc';
 import { prisma } from '../db';
-import { getStripe } from '../stripe';
+import { getStripe, ensureStripeCustomer } from '../stripe';
 import { getCreditBalance } from '../auth';
 
 /**
@@ -243,12 +243,19 @@ export const checkoutRouter = router({
         };
       }
 
-      // Stripe PaymentIntent
+      // Stripe PaymentIntent. Attaching the Customer surfaces the buyer's
+      // saved cards inside Stripe Elements automatically — no client-side
+      // picker UI required. setup_future_usage: 'off_session' tells Stripe
+      // to save any newly entered card to that Customer once the payment
+      // succeeds, which is what populates /account/payment-methods.
       const stripe = getStripe();
+      const customerId = await ensureStripeCustomer(ctx.user.id);
       const intent = await stripe.paymentIntents.create(
         {
           amount: order.totalAmount,
           currency: order.currency.toLowerCase(),
+          customer: customerId,
+          setup_future_usage: 'off_session',
           metadata: { orderId: order.id, orderNumber: order.orderNumber },
           automatic_payment_methods: { enabled: true },
           description: `Onsective ${order.orderNumber}`,
