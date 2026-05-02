@@ -77,6 +77,10 @@ These are **not** part of the web server. Run them as their own k8s Deployments 
 | Cart recovery | `pnpm --filter @onsective/web cron:cart-recovery` | Schedule **daily**. Emails buyers with carts untouched 24h–7d, gated on `User.emailMarketingOptIn`. One nudge per cart, ever. |
 | Low-stock alerts | `pnpm --filter @onsective/web cron:low-stock` | Schedule **daily**. Per-seller digest of variants at or under their `reorderPoint`. Bumps `Variant.lowStockEmailedAt` per send; re-eligible after 7 days so a SKU that stays low keeps surfacing weekly. |
 | Price-drop digests | `pnpm --filter @onsective/web cron:price-drops` | Schedule **daily**. Per-buyer digest of wishlisted items now ≥10% cheaper than the baseline at save time. Gated on `User.emailMarketingOptIn`. Re-baselines to the new price after sending; 30-day cooldown per item. |
+
+### Address autocomplete (optional)
+
+`MAPBOX_GEOCODING_TOKEN` (server-side only) unlocks the typeahead dropdown on `/account/addresses` new/edit forms. When unset, the proxy at `/api/geocode/autocomplete` returns an empty list and the dropdown silently doesn't appear — manual entry still works. Mapbox free tier covers 100k geocodes/month. Use a "secret" token (`sk.*`) since this is server-side; restrict the URL list in the Mapbox dashboard for defence-in-depth.
 | Full search reindex | `pnpm --filter @onsective/web reindex:search` | One-shot — run after schema changes or on first OpenSearch turn-up |
 
 Each is meant to scale horizontally — BullMQ handles concurrency.
