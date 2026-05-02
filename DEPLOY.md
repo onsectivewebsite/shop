@@ -73,6 +73,7 @@ These are **not** part of the web server. Run them as their own k8s Deployments 
 | Search-index worker | `pnpm --filter @onsective/web worker:search-index` | Pushes product changes into OpenSearch |
 | Payouts cron | `pnpm --filter @onsective/web cron:payouts` | Run **once at boot** to register the hourly repeatable |
 | Ads daily reset | `pnpm --filter @onsective/web cron:ads-reset` | Schedule **hourly** (cron job, EventBridge, k8s CronJob) |
+| FX rates | `pnpm --filter @onsective/web cron:fx-rates` | Schedule **daily**. Needs `OPENEXCHANGERATES_APP_ID` env. Stale-guard refuses cross-currency credit conversion if rates fall behind by 7+ days. |
 | Full search reindex | `pnpm --filter @onsective/web reindex:search` | One-shot — run after schema changes or on first OpenSearch turn-up |
 
 Each is meant to scale horizontally — BullMQ handles concurrency.

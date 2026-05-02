@@ -131,56 +131,100 @@ export async function redeemCredit(args: {
 }
 
 /**
- * Reverse a redemption — used when an order is cancelled before payment
- * captures. Idempotent on the same source pair as the original REDEEM.
+ * Reverse all credit redemptions tied to an order — used when payment fails
+ * and we need to make the buyer whole. Walks both source types written by
+ * checkout: 'order' (same-currency REDEEM) and 'order_fx' (cross-currency
+ * REDEEM with FX columns set). Each leg is its own ledger row, refunded into
+ * its own currency balance.
+ *
+ * Idempotent per leg on (sourceType, sourceId, REFUND), so a webhook replay
+ * re-runs cleanly without double-crediting.
  */
 export async function refundCredit(args: {
   userId: string;
   orderId: string;
   currency: string;
-}): Promise<{ refundedMinor: number }> {
-  const redeem = await prisma.userCreditTransaction.findUnique({
+}): Promise<{ refundedMinor: number; refundedCurrency: string | null }> {
+  const redeems = await prisma.userCreditTransaction.findMany({
     where: {
-      sourceType_sourceId_type: {
-        sourceType: 'order',
-        sourceId: args.orderId,
-        type: 'REDEEM',
-      },
+      sourceType: { in: ['order', 'order_fx'] },
+      sourceId: args.orderId,
+      type: 'REDEEM',
+      userId: args.userId,
     },
-    select: { amountMinor: true, currency: true, userId: true },
+    select: {
+      amountMinor: true,
+      currency: true,
+      sourceType: true,
+      fxRate: true,
+      fxFromCurrency: true,
+      fxFromAmountMinor: true,
+    },
   });
-  if (!redeem || redeem.userId !== args.userId) return { refundedMinor: 0 };
-  const amount = Math.abs(redeem.amountMinor);
+  if (redeems.length === 0) return { refundedMinor: 0, refundedCurrency: null };
 
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.userCreditTransaction.create({
-        data: {
-          userId: args.userId,
-          type: 'REFUND',
-          amountMinor: amount,
-          currency: redeem.currency,
-          sourceType: 'order',
-          sourceId: args.orderId,
-        },
+  // Aggregated return value mirrors the legacy single-leg shape — callers
+  // only use it for logging. Caller-of-record currency is whichever leg had
+  // the most refunded; FX leg amounts are tallied in their own currency, so
+  // we pick the order currency as the "primary" surface for the response.
+  let primaryRefunded = 0;
+  let primaryCurrency: string | null = null;
+
+  for (const redeem of redeems) {
+    // Cross-currency leg ('order_fx'): return the source-currency amount
+    // that was actually decremented, at the rate that was active when the
+    // user redeemed. Same-currency leg ('order'): straightforward unwind.
+    const refundCurrency = redeem.fxFromCurrency ?? redeem.currency;
+    const refundAmount = redeem.fxFromCurrency
+      ? redeem.fxFromAmountMinor ?? 0
+      : Math.abs(redeem.amountMinor);
+    if (refundAmount <= 0) continue;
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.userCreditTransaction.create({
+          data: {
+            userId: args.userId,
+            type: 'REFUND',
+            amountMinor: refundAmount,
+            currency: refundCurrency,
+            sourceType: redeem.sourceType,
+            sourceId: args.orderId,
+            // Mirror FX details so the audit log can pair REDEEM/REFUND by
+            // the same fxRate even after the rate has moved on Stripe.
+            fxRate: redeem.fxRate,
+            fxFromCurrency: redeem.fxFromCurrency,
+            fxFromAmountMinor: redeem.fxFromAmountMinor,
+          },
+        });
+        await tx.userCreditBalance.upsert({
+          where: {
+            userId_currency: { userId: args.userId, currency: refundCurrency },
+          },
+          create: {
+            userId: args.userId,
+            currency: refundCurrency,
+            amountMinor: refundAmount,
+          },
+          update: { amountMinor: { increment: refundAmount } },
+        });
       });
-      await tx.userCreditBalance.upsert({
-        where: {
-          userId_currency: { userId: args.userId, currency: redeem.currency },
-        },
-        create: {
-          userId: args.userId,
-          currency: redeem.currency,
-          amountMinor: amount,
-        },
-        update: { amountMinor: { increment: amount } },
-      });
-    });
-    return { refundedMinor: amount };
-  } catch (err: unknown) {
-    if ((err as { code?: string }).code === 'P2002') return { refundedMinor: 0 };
-    throw err;
+      if (refundCurrency === args.currency) {
+        primaryRefunded += refundAmount;
+        primaryCurrency = refundCurrency;
+      } else if (primaryCurrency === null) {
+        primaryRefunded = refundAmount;
+        primaryCurrency = refundCurrency;
+      }
+    } catch (err: unknown) {
+      // P2002 = REFUND for this (sourceType, sourceId) already written by an
+      // earlier webhook attempt. No-op; the balance is already restored.
+      if ((err as { code?: string }).code === 'P2002') continue;
+      throw err;
+    }
   }
+
+  return { refundedMinor: primaryRefunded, refundedCurrency: primaryCurrency };
 }
 
 export async function getCreditBalances(userId: string): Promise<

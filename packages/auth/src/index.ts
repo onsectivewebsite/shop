@@ -46,3 +46,9 @@ export {
   getCreditBalance,
   getCreditBalances,
 } from './credits';
+export {
+  getLatestRate,
+  convertMinor,
+  quoteCrossCurrency,
+} from './fx';
+export type { FxLookup } from './fx';

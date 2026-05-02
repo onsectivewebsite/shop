@@ -19,6 +19,9 @@ export function PayForm() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Captured once before placeOrder fires so the sidebar can show the FX
+  // deduction line even though sessionStorage gets cleared right after.
+  const [appliedFx, setAppliedFx] = useState<boolean>(false);
 
   const place = trpc.checkout.placeOrder.useMutation({
     onSuccess: (data) => {
@@ -40,17 +43,21 @@ export function PayForm() {
       return;
     }
     if (!clientSecret && !place.isLoading && summary) {
-      // The note is captured on the shipping page and stashed in
-      // sessionStorage so it survives the navigation to /checkout/pay
-      // without needing a server round-trip just to hold it.
+      // The note + cross-currency-credit toggle are captured on the shipping
+      // page and stashed in sessionStorage so they survive the navigation to
+      // /checkout/pay without a server round-trip just to hold them.
       const note = sessionStorage.getItem('checkout.buyerNote') ?? '';
+      const useFx = sessionStorage.getItem('checkout.useFx') === '1';
+      setAppliedFx(useFx && !!summary.crossCurrencyOption);
       place.mutate({
         shippingAddressId: id,
         buyerNote: note.trim().length > 0 ? note : undefined,
+        useCrossCurrencyCredit: useFx,
       });
-      // Clear it so a subsequent navigation back to checkout doesn't
-      // accidentally reuse a stale note.
+      // Clear so a subsequent back-navigation doesn't accidentally reuse
+      // stale state on the next placeOrder.
       sessionStorage.removeItem('checkout.buyerNote');
+      sessionStorage.removeItem('checkout.useFx');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summary, clientSecret]);
@@ -115,10 +122,24 @@ export function PayForm() {
               tone="credit"
             />
           )}
+          {appliedFx && summary.crossCurrencyOption && (
+            <Row
+              label={`${summary.crossCurrencyOption.fromCurrency} credit`}
+              value={`−${formatMoney(
+                summary.crossCurrencyOption.toAmountMinor,
+                summary.currency,
+              )}`}
+              tone="credit"
+            />
+          )}
           <hr className="border-slate-200" />
           <Row
             label="Total"
-            value={formatMoney(summary.total, summary.currency)}
+            value={formatMoney(
+              summary.total -
+                (appliedFx ? summary.crossCurrencyOption?.toAmountMinor ?? 0 : 0),
+              summary.currency,
+            )}
             bold
           />
         </CardContent>

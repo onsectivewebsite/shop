@@ -3,7 +3,13 @@ import { z } from 'zod';
 import { router, protectedProcedure, userMutationRateLimit } from '../trpc';
 import { prisma } from '../db';
 import { getStripe, ensureStripeCustomer } from '../stripe';
-import { getCreditBalance } from '../auth';
+import {
+  convertMinor,
+  getCreditBalance,
+  getCreditBalances,
+  getLatestRate,
+  quoteCrossCurrency,
+} from '../auth';
 
 /**
  * Checkout router — Phase 1.
@@ -26,6 +32,47 @@ async function loadCart(userId: string) {
       },
     },
   });
+}
+
+type CrossCurrencyOption = {
+  fromCurrency: string;
+  fromAmountMinor: number;
+  toAmountMinor: number;
+  rate: number;
+};
+
+/**
+ * Pick the single non-cart-currency credit balance that, after FX conversion,
+ * covers the most of the residual order total. Single-source on purpose —
+ * multi-source redemption is fancier UI without a real user pulling for it.
+ */
+async function pickBestCrossCurrencyOption(
+  userId: string,
+  cartCurrency: string,
+  residualMinor: number,
+): Promise<CrossCurrencyOption | null> {
+  if (residualMinor <= 0) return null;
+  const balances = await getCreditBalances(userId);
+  let best: CrossCurrencyOption | null = null;
+  for (const b of balances) {
+    if (b.currency === cartCurrency) continue;
+    const quote = await quoteCrossCurrency({
+      amountMinor: b.amountMinor,
+      fromCurrency: b.currency,
+      toCurrency: cartCurrency,
+    });
+    if (!quote || quote.amountMinor === 0) continue;
+    const applied = Math.min(quote.amountMinor, residualMinor);
+    if (!best || applied > best.toAmountMinor) {
+      best = {
+        fromCurrency: b.currency,
+        fromAmountMinor: b.amountMinor,
+        toAmountMinor: applied,
+        rate: quote.rate,
+      };
+    }
+  }
+  return best;
 }
 
 /**
@@ -56,12 +103,21 @@ export const checkoutRouter = router({
     const tax = 0; // Stripe Tax in Phase 2
     const preCreditTotal = subtotal + shipping + tax;
 
-    // Apply user credit in the cart's currency. Auto-applies up to the
-    // order total — no slider, no opt-out at v1. Splitting an order is
-    // the workaround for users who want to hold credit back.
+    // Same-currency credit auto-applies. Splitting orders is the workaround
+    // for users who want to hold same-currency credit back.
     const creditAvailable = await getCreditBalance(ctx.user.id, cart.currency);
     const creditApplied = Math.min(creditAvailable, preCreditTotal);
-    const total = preCreditTotal - creditApplied;
+    const residual = preCreditTotal - creditApplied;
+
+    // Cross-currency option only surfaces when there's residual order total
+    // AND the user has a non-cart-currency balance. Opt-in at order time —
+    // we don't auto-apply because the user is choosing to lock in today's
+    // FX rate.
+    const crossCurrencyOption = await pickBestCrossCurrencyOption(
+      ctx.user.id,
+      cart.currency,
+      residual,
+    );
 
     return {
       cart,
@@ -72,7 +128,8 @@ export const checkoutRouter = router({
       tax,
       creditAvailable,
       creditApplied,
-      total,
+      crossCurrencyOption,
+      total: residual,
       currency: cart.currency,
     };
   }),
@@ -87,6 +144,10 @@ export const checkoutRouter = router({
         // chars at the boundary so a malicious payload can't blow up
         // seller email rendering.
         buyerNote: z.string().trim().max(1000).optional(),
+        // Opt-in to applying a non-cart-currency credit balance. We don't
+        // auto-apply because the user is choosing to lock in today's FX
+        // rate — that's their call.
+        useCrossCurrencyCredit: z.boolean().default(false),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -124,7 +185,42 @@ export const checkoutRouter = router({
       // guards the actual decrement so a race here is caught and rejected.
       const creditAvailable = await getCreditBalance(ctx.user.id, cart.currency);
       const creditApplied = Math.min(creditAvailable, preCreditTotal);
-      const total = preCreditTotal - creditApplied;
+      const residualAfterSameCurrency = preCreditTotal - creditApplied;
+
+      // Re-quote the FX option at order time. The rate the buyer locks in is
+      // whatever's in the FxRate table right now — not whatever was quoted on
+      // the summary page seconds ago. Returns null if rates are stale or the
+      // buyer has no eligible balance left.
+      let fxRedemption:
+        | {
+            fromCurrency: string;
+            fromAmountMinor: number;
+            toAmountMinor: number;
+            rate: number;
+          }
+        | null = null;
+      if (input.useCrossCurrencyCredit && residualAfterSameCurrency > 0) {
+        const best = await pickBestCrossCurrencyOption(
+          ctx.user.id,
+          cart.currency,
+          residualAfterSameCurrency,
+        );
+        // pickBest returns the source-currency total it considered; we need
+        // the precise from-amount for the actual applied to-amount, not the
+        // whole balance. Re-derive at the rate we just quoted, rounding UP
+        // so we don't grant the buyer a fractional-cent extra.
+        if (best) {
+          fxRedemption = {
+            fromCurrency: best.fromCurrency,
+            fromAmountMinor: Math.ceil(best.toAmountMinor / best.rate),
+            toAmountMinor: best.toAmountMinor,
+            rate: best.rate,
+          };
+        }
+      }
+      const fxApplied = fxRedemption?.toAmountMinor ?? 0;
+      const totalDiscount = creditApplied + fxApplied;
+      const total = preCreditTotal - totalDiscount;
 
       // Order number — production should use a sequence-backed generator
       const year = new Date().getFullYear();
@@ -141,7 +237,7 @@ export const checkoutRouter = router({
             subtotalAmount: subtotal,
             shippingAmount: shipping,
             taxAmount: tax,
-            discountAmount: creditApplied,
+            discountAmount: totalDiscount,
             totalAmount: total,
             shippingAddressId: input.shippingAddressId,
             billingAddressId: input.billingAddressId ?? input.shippingAddressId,
@@ -178,6 +274,65 @@ export const checkoutRouter = router({
               sourceType: 'order',
               sourceId: created.id,
               note: `Applied at checkout (${orderNumber})`,
+            },
+          });
+        }
+
+        // Cross-currency redemption — pulled inside the same transaction so
+        // the order, the source-currency decrement, and the FX-tagged ledger
+        // row land together. The unique (sourceType, sourceId, type) gate on
+        // the ledger means we have to write a single REDEEM row covering both
+        // legs; we encode the same-currency leg as the primary amount and
+        // record the FX details when both legs combine. To keep idempotency
+        // straight, the FX REDEEM is written as a SEPARATE source pair using
+        // 'order_fx' so the same-currency REDEEM still owns the 'order' key.
+        if (fxRedemption) {
+          // Re-fetch the freshest rate for this pair to make sure we don't
+          // commit at a rate older than what stale-guard would refuse on the
+          // refund side. Belt-and-braces — pickBest already filtered staleness.
+          const lookup = await getLatestRate(
+            fxRedemption.fromCurrency,
+            cart.currency,
+          );
+          if (!lookup) {
+            throw new TRPCError({
+              code: 'CONFLICT',
+              message:
+                'FX rate became stale during checkout. Please retry without cross-currency credit.',
+            });
+          }
+          // Re-derive the from-amount against the freshest rate so we don't
+          // overspend if the rate moved between the summary call and now.
+          const finalFromMinor = Math.ceil(fxRedemption.toAmountMinor / lookup.rate);
+          const decremented = await tx.userCreditBalance.updateMany({
+            where: {
+              userId: ctx.user.id,
+              currency: fxRedemption.fromCurrency,
+              amountMinor: { gte: finalFromMinor },
+            },
+            data: { amountMinor: { decrement: finalFromMinor } },
+          });
+          if (decremented.count === 0) {
+            throw new TRPCError({
+              code: 'CONFLICT',
+              message: 'Your cross-currency balance changed during checkout. Please retry.',
+            });
+          }
+          // Recompute toMinor against the actual rate we used so the receipt,
+          // ledger, and order discount all agree.
+          const finalToMinor = convertMinor(finalFromMinor, lookup.rate);
+          await tx.userCreditTransaction.create({
+            data: {
+              userId: ctx.user.id,
+              type: 'REDEEM',
+              amountMinor: -finalToMinor,
+              currency: cart.currency,
+              fxRate: lookup.rate.toFixed(8),
+              fxFromCurrency: fxRedemption.fromCurrency,
+              fxFromAmountMinor: finalFromMinor,
+              sourceType: 'order_fx',
+              sourceId: created.id,
+              note: `FX-applied at checkout (${orderNumber})`,
             },
           });
         }

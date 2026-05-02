@@ -12,6 +12,7 @@ export default function CheckoutShippingPage() {
   const router = useRouter();
   const { data, isLoading } = trpc.checkout.summary.useQuery();
   const [note, setNote] = useState<string>('');
+  const [useFx, setUseFx] = useState<boolean>(false);
 
   if (isLoading || !data) {
     return <p className="text-slate-500">Loading…</p>;
@@ -59,20 +60,56 @@ export default function CheckoutShippingPage() {
         </CardContent>
       </Card>
 
+      {data.crossCurrencyOption && (
+        <Card className="mt-4 border-emerald-200 bg-emerald-50">
+          <CardContent className="space-y-2 p-4">
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={useFx}
+                onChange={(e) => setUseFx(e.target.checked)}
+                className="mt-1"
+              />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-emerald-900">
+                  Apply your {data.crossCurrencyOption.fromCurrency} credit balance
+                </p>
+                <p className="mt-1 text-xs text-emerald-800">
+                  You have{' '}
+                  {formatMoney(
+                    data.crossCurrencyOption.fromAmountMinor,
+                    data.crossCurrencyOption.fromCurrency,
+                  )}{' '}
+                  in {data.crossCurrencyOption.fromCurrency}. Applying it now
+                  saves{' '}
+                  {formatMoney(
+                    data.crossCurrencyOption.toAmountMinor,
+                    data.currency,
+                  )}{' '}
+                  on this order at today&apos;s rate (1 {data.crossCurrencyOption.fromCurrency}{' '}
+                  = {data.crossCurrencyOption.rate.toFixed(4)} {data.currency}).
+                </p>
+              </div>
+            </label>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="mt-6 flex justify-end">
         <Button
           variant="cta"
           size="lg"
           onClick={() => {
-            // Stash the note in sessionStorage so the pay-form picks it up
-            // when it calls placeOrder. Cleared on submit so navigating
-            // back here later doesn't reuse a stale message.
+            // Stash the note + FX choice in sessionStorage so the pay-form
+            // picks them up when it calls placeOrder. Cleared on submit so
+            // navigating back later doesn't reuse stale state.
             const trimmed = note.trim();
             if (trimmed.length > 0) {
               sessionStorage.setItem('checkout.buyerNote', trimmed);
             } else {
               sessionStorage.removeItem('checkout.buyerNote');
             }
+            sessionStorage.setItem('checkout.useFx', useFx ? '1' : '0');
             router.push('/checkout/pay');
           }}
         >

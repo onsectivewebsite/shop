@@ -258,10 +258,31 @@ model UserCreditTransaction {
   sourceType  String
   sourceId    String
   note        String?
+  // FX details when this transaction was a cross-currency redemption. Lets
+  // a later REFUND unwind at the same rate the REDEEM used, instead of
+  // whatever rate is current at refund time.
+  fxRate              Decimal? @db.Decimal(18, 8)
+  fxFromCurrency      String?
+  fxFromAmountMinor   Int?
   createdAt   DateTime         @default(now())
 
   @@unique([sourceType, sourceId, type])
   @@index([userId, createdAt])
+}
+
+// Daily FX-rate snapshots from cron-fx-rates. Keep history rather than
+// overwriting so refund-side conversion can use the rate active at redeem
+// time, and a stale-rate guard can refuse anything older than N days.
+model FxRate {
+  id         String   @id @default(cuid())
+  base       String   // ISO 4217, e.g. 'USD'
+  quote      String   // ISO 4217, e.g. 'INR'
+  rate       Decimal  @db.Decimal(18, 8)
+  source     String   // 'openexchangerates' | 'manual'
+  fetchedAt  DateTime @default(now())
+
+  @@unique([base, quote, fetchedAt])
+  @@index([base, quote, fetchedAt(sort: Desc)])
 }
 
 enum EmailCampaignStatus {

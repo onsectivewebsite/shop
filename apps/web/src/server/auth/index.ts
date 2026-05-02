@@ -28,6 +28,9 @@ export {
   refundCredit,
   getCreditBalance,
   getCreditBalances,
+  getLatestRate,
+  convertMinor,
+  quoteCrossCurrency,
 } from '@onsective/auth';
 export type { LoginMethod, LoginContext, ReferralStats } from '@onsective/auth';
 export {

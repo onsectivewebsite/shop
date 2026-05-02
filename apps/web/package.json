@@ -20,6 +20,7 @@
     "cron:ads-reset": "tsx scripts/cron-ads-reset.ts",
     "cron:review-prompts": "tsx scripts/cron-review-prompts.ts",
     "cron:email-campaigns": "tsx scripts/cron-email-campaigns.ts",
+    "cron:fx-rates": "tsx scripts/cron-fx-rates.ts",
     "reindex:search": "tsx scripts/reindex-search.ts"
   },
   "dependencies": {
